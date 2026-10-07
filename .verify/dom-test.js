@@ -7,7 +7,8 @@
  *   3. 「是否抽取 / 当日获取 / 上半卡池时间已过」在结果表中可勾选并生效；
  *   4. 结果表列结构（已移除「判断方式」列，行内单元格数与表头一致）；
  *   5. 版本名称可修改，并立即反映到结果表；
- *   6. 版本卡片不再包含上述勾选项。
+ *   6. 版本卡片不再包含上述勾选项；
+ *   7. 列表最后一个干员在「当日 + 足够」时，结果表的「扣除后抽数」已计入本半场抽数。
  *
  * 运行：node .verify/dom-test.js
  */
@@ -259,4 +260,32 @@ async function run(win, doc) {
     click(win, $('versionList').querySelector('[data-action="delete-version"]'));
     await flush(win);
     ok(ZMD.store.getState().versionDataList.length === 0, '删除版本可用');
+
+    section('【8】列表最后一个干员的「扣除后抽数」把本半场抽数计入');
+    // 200 抽资源 + 单角色小版本（73 抽）+ 当日获取且足够 → 200-120+73 = 153
+    ZMD.store.setResource('crystalJade', 500 * 200);
+    ZMD.store.addVersion({ scale: 'small', roleCount: 1, smallPulls: 73, role1Pull: true, role1DayOne: true });
+    await flush(win);
+
+    const afterCell = function (row) { return row.querySelectorAll('td')[6]; };
+    ok(rows().length === 1, '单角色版本仍是 1 行结果');
+    ok(rows()[0].querySelectorAll('td')[4].textContent.indexOf('200 抽') >= 0,
+        '判断时总抽数仍是不含本半场的 200 抽', rows()[0].querySelectorAll('td')[4].textContent);
+    ok(afterCell(rows()[0]).textContent.indexOf('153 抽') >= 0,
+        '最后一个干员：扣除后抽数已加上本半场（200-120+73 = 153）', afterCell(rows()[0]).textContent);
+    ok((afterCell(rows()[0]).getAttribute('title') || '').indexOf('最后一个干员') >= 0,
+        '该单元格带有说明（鼠标悬停可读）');
+    ok($('summaryRemaining').textContent === '153 抽', '汇总剩余与之一致（153 抽）', $('summaryRemaining').textContent);
+
+    // 再追加一个版本：原来的「最后一个干员」不再是最后一行 → 恢复为不含本半场的中间值
+    ZMD.store.addVersion({ scale: 'small', roleCount: 1, smallPulls: 73, role1Pull: true, role1DayOne: false });
+    await flush(win);
+    ok(rows().length === 2, '追加版本后共 2 行结果');
+    ok(afterCell(rows()[0]).textContent.indexOf('80 抽') >= 0,
+        '不再是最后一个干员：扣除后抽数回到未含本半场的 80 抽', afterCell(rows()[0]).textContent);
+    ok(!afterCell(rows()[0]).getAttribute('title'), '该行不再带「最后一个干员」说明');
+    ok(afterCell(rows()[1]).textContent.indexOf('106 抽') >= 0,
+        '新的最后一个干员（非当日）：先加半场再扣，扣除后抽数天然含本半场（153+73-120 = 106）',
+        afterCell(rows()[1]).textContent);
+    ok($('summaryRemaining').textContent === '106 抽', '汇总剩余同步为 106 抽', $('summaryRemaining').textContent);
 }

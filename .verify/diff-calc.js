@@ -6,6 +6,9 @@
  * **改造前的原始算法** 作为参照实现，对大量随机场景逐字段比对结果，
  * 确保重构没有改变任何抽卡数值。
  *
+ * 唯一的有意数值变更：「列表最后一个干员」在「当日获取 + 资源足够」时，
+ * 「扣除后抽数」直接计入本半场抽数（见下方 applyLastRoleRule，参照实现同样套用）。
+ *
  * 运行：node .verify/diff-calc.js
  */
 'use strict';
@@ -120,6 +123,7 @@ function oldResolveHalf(ctx, options) {
         beforeJudgment: ctx.currentTotal,
         enough: null,
         afterDeduct: null,
+        afterDeductWithHalf: false,
         finalTotal: ctx.currentTotal
     };
 
@@ -204,6 +208,27 @@ function oldRun(versionDataList, resources, settings) {
     };
 }
 
+// ======================== 规则变更：列表最后一个干员 ========================
+// 本次改动新增的规则（不是重构，而是有意的数值变化）：
+// 「列表最后一个干员」在「当日获取 + 资源足够」时，「扣除后抽数」直接把本半场抽数计入
+// （等于该步骤的 finalTotal）。参照实现同样套用这条规则，其余字段仍逐字段差分。
+// 若将来这条规则再次变化，请同步修改这里与 js/core/calc.js。
+
+function applyLastRoleRule(result) {
+    let last = null;
+    for (let i = result.steps.length - 1; i >= 0; i -= 1) {
+        if (!result.steps[i].isIncome) { last = result.steps[i]; break; }
+    }
+    if (last) {
+        last.afterDeductWithHalf = false;
+        if (last.dayOne && last.enough === true) {
+            last.afterDeduct = last.finalTotal;
+            last.afterDeductWithHalf = true;
+        }
+    }
+    return result;
+}
+
 // ======================== 随机场景 ========================
 
 /** 可复现的伪随机数（固定种子） */
@@ -259,9 +284,10 @@ function randomSettings() {
     return { defaultLargePulls: randInt(1, 200), defaultSmallPulls: randInt(1, 200) };
 }
 
-/** 只比对改造前就存在的字段 */
+/** 只比对改造前就存在的字段（`afterDeductWithHalf` 为本次新增，已由参照实现同步套用） */
 const STEP_FIELDS = ['isIncome', 'versionLabel', 'halfLabel', 'roleName', 'halfPulls',
-    'dayOne', 'willPull', 'skipHalf', 'beforeJudgment', 'enough', 'afterDeduct', 'finalTotal', 'income'];
+    'dayOne', 'willPull', 'skipHalf', 'beforeJudgment', 'enough', 'afterDeduct', 'finalTotal', 'income',
+    'afterDeductWithHalf'];
 
 function normalize(steps) {
     return steps.map(function (step) {
@@ -284,7 +310,7 @@ for (let i = 0; i < SCENARIOS; i += 1) {
     const versionCount = randInt(0, 4);
     for (let v = 0; v < versionCount; v += 1) list.push(randomVersion());
 
-    const expected = oldRun(list, resources, settings);
+    const expected = applyLastRoleRule(oldRun(list, resources, settings));
     const actual = calc.run(list, resources, settings);
 
     const problems = [];
@@ -344,6 +370,56 @@ expect(half2.pullRequested === false && half2.willPull === false, '下半未勾�
 expect(half1.versionLabel === '星尘（大版本）', '版本标签使用自定义名称', half1.versionLabel);
 expect(calc.versionLabelOf({ scale: 'small' }, 2) === '版本3（小版本）', '未命名时回退为「版本N（规模）」', calc.versionLabelOf({ scale: 'small' }, 2));
 expect(calc.versionLabelOf({ versionName: '   ', scale: 'custom' }, 0) === '版本1（自定义版本）', '空白名称同样回退');
+
+console.log('\n列表最后一个干员的「扣除后抽数」规则：');
+
+// ① 最后一个干员：当日 + 资源足够 → 扣除后抽数直接计入本半场（= 最终剩余）
+const lastEnough = calc.run(
+    [{ scale: 'small', roleCount: 1, role1Name: '丙', role1Pull: true, role1DayOne: true }],
+    { crystalJade: 500 * 200 }, { defaultLargePulls: 104, defaultSmallPulls: 73 });
+const leStep = lastEnough.steps[0];
+expect(leStep.halfPulls === 73 && leStep.afterDeduct === leStep.finalTotal && leStep.afterDeduct === 153,
+    '最后一个干员（当日 + 足够）：扣除后抽数 = 200-120+73 = 153，等于最终剩余',
+    'afterDeduct=' + leStep.afterDeduct + ' finalTotal=' + leStep.finalTotal);
+expect(leStep.afterDeductWithHalf === true, '最后一个干员（当日 + 足够）：标记 afterDeductWithHalf');
+
+// ② 最后一个干员：当日但资源不足 → 不做扣除，也不加半场抽数（保持原语义）
+const lastShort = calc.run(
+    [{ scale: 'small', roleCount: 1, role1Name: '丙', role1Pull: true, role1DayOne: true }],
+    { crystalJade: 500 * 100 }, { defaultLargePulls: 104, defaultSmallPulls: 73 });
+const lsStep = lastShort.steps[0];
+expect(lsStep.enough === false && lsStep.afterDeduct === 100 && lsStep.finalTotal === 173,
+    '最后一个干员（当日 + 不足）：不做扣除、扣除后抽数保持 100，最终剩余 173',
+    'afterDeduct=' + lsStep.afterDeduct + ' finalTotal=' + lsStep.finalTotal);
+expect(lsStep.afterDeductWithHalf === false, '最后一个干员（当日 + 不足）：不标记 afterDeductWithHalf');
+
+// ③ 非最后一个干员：当日 + 足够时仍保持「未计入本半场」，否则会与下一步判断冲突
+const midStep = calc.run(
+    [{ scale: 'small', roleCount: 1, role1Name: '甲', role1Pull: true, role1DayOne: true },
+     { scale: 'small', roleCount: 1, role1Name: '乙', role1Pull: true, role1DayOne: false }],
+    { crystalJade: 500 * 200 }, { defaultLargePulls: 104, defaultSmallPulls: 73 });
+const mid = midStep.steps[0];
+expect(mid.afterDeduct === 80 && mid.finalTotal === 153 && mid.afterDeductWithHalf === false,
+    '非最后一个干员：扣除后抽数保持 80（未含本半场 73），finalTotal 仍为 153',
+    'afterDeduct=' + mid.afterDeduct + ' finalTotal=' + mid.finalTotal);
+
+// ④ 最后一个干员：非当日模式本来就「先加半场再扣 120」，扣除后抽数天然含本半场
+const lastNormal = calc.run(
+    [{ scale: 'small', roleCount: 1, role1Name: '丙', role1Pull: true, role1DayOne: false }],
+    { crystalJade: 500 * 200 }, { defaultLargePulls: 104, defaultSmallPulls: 73 });
+const lnStep = lastNormal.steps[0];
+expect(lnStep.afterDeduct === 153 && lnStep.afterDeduct === lnStep.finalTotal && lnStep.afterDeductWithHalf === false,
+    '最后一个干员（非当日）：扣除后抽数已含本半场 153，无需打标记',
+    'afterDeduct=' + lnStep.afterDeduct);
+
+// ⑤ 最后一个干员是双角色版本的下半：同样套用规则
+const lastHalf2 = calc.run(
+    [{ scale: 'large', roleCount: 2, role1Pull: false, role2Name: '乙', role2Pull: true, role2DayOne: true }],
+    { crystalJade: 500 * 200 }, { defaultLargePulls: 104, defaultSmallPulls: 73 });
+const l2 = lastHalf2.steps[lastHalf2.steps.length - 1];
+expect(l2.halfLabel === '下半' && l2.afterDeduct === l2.finalTotal && l2.afterDeductWithHalf === true,
+    '最后一个干员为下半行时同样生效（扣除后抽数 = 最终剩余）',
+    'afterDeduct=' + l2.afterDeduct + ' finalTotal=' + l2.finalTotal);
 
 console.log('\n———————————————————————————————');
 if (mismatch === 0) {

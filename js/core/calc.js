@@ -11,6 +11,8 @@
  *   武库配额 1980 个 = 1 抽（保留 1 位小数，不计入总抽数）
  *   手动抽数 直接计入总抽数，可为负数
  *   每个角色按 120 抽结算，支持「当日获取」（先扣后加）
+ *   列表最后一个干员：当日获取且资源足够时，「扣除后抽数」直接计入本半场抽数
+ *   （即等于最终剩余；其它行必须保持「未计入本半场」，否则会与下一步的判断冲突）
  *   双角色版本按上半 55%（向下取整）、下半 45% 分配
  *
  * 武库配额推演（可选功能，由 settings.arsenalPlanEnabled 控制）：
@@ -235,6 +237,8 @@
             beforeJudgment: ctx.currentTotal,
             enough: null,
             afterDeduct: null,
+            /** 「扣除后抽数」是否已经计入本半场抽数（仅列表最后一个干员会出现） */
+            afterDeductWithHalf: false,
             finalTotal: ctx.currentTotal
         };
 
@@ -393,6 +397,23 @@
                 step.arsenalTotalPulls = arsenal.current;
             });
         });
+
+        // 列表最后一个干员：当日获取且资源足够时，「扣除后抽数」直接把本半场抽数计入。
+        // 「当日获取」是「先扣 120、再加入本半场抽数」，中间这一行在其它干员身上必须保持
+        // 「未计入本半场」，因为下一步判断要以它为基准；但最后一个干员后面没有步骤，
+        // 这里直接把半场抽数加上，读者看到的就是规划结束时的剩余（与 finalTotal 相同）。
+        // 非当日模式本来就是「先加半场、再扣 120」，扣除后抽数自然已经含本半场，无需处理。
+        var lastRoleStep = null;
+        for (var i = steps.length - 1; i >= 0; i -= 1) {
+            if (!steps[i].isIncome) {
+                lastRoleStep = steps[i];
+                break;
+            }
+        }
+        if (lastRoleStep && lastRoleStep.dayOne && lastRoleStep.enough === true) {
+            lastRoleStep.afterDeduct = lastRoleStep.finalTotal;
+            lastRoleStep.afterDeductWithHalf = true;
+        }
 
         arsenal.totalPulls = parseFloat(arsenal.current.toFixed(1));
         pullContext.arsenalGainPulls = arsenal.gainPulls;

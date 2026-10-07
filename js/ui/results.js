@@ -182,6 +182,10 @@
         var dayOneTag = step.dayOne ? '<span class="tag-day-one">当日获取</span>' : '';
         var weaponTag = step.weaponPull ? '<span class="tag-weapon">抽武器</span>' : '';
         var afterDeduct = step.afterDeduct !== null ? (step.afterDeduct + ' 抽') : '-';
+        // 最后一个干员在「当日 + 足够」时，扣除后抽数已计入本半场抽数（= 最终剩余）
+        var afterDeductTitle = step.afterDeductWithHalf
+            ? ' title="列表最后一个干员：已把本半场抽数计入，即为规划结束时的剩余"'
+            : '';
 
         return '' +
             '<tr class="step-row' + (step.skipHalf ? ' row-skipped' : '') + '">' +
@@ -191,7 +195,7 @@
                 resolvePullsCell(step) +
                 '<td class="pull-cell">' + step.beforeJudgment + ' 抽</td>' +
                 '<td class="' + status.className + '">' + status.text + '</td>' +
-                '<td class="pull-cell">' + afterDeduct + '</td>' +
+                '<td class="pull-cell"' + afterDeductTitle + '>' + afterDeduct + '</td>' +
                 arsenalCell(step, true) +
             '</tr>';
     }
