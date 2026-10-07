@@ -1,0 +1,264 @@
+/* ============================================================
+ * 布局与头部
+ * ============================================================ */
+
+/* ===== 头部 ===== */
+.header {
+    text-align: center;
+    padding: 28px 20px 20px;
+    position: relative;
+}
+
+.header .logo-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px var(--accent-glow));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, var(--title-from), var(--title-via), var(--title-to));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+}
+
+.header .subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+
+/* ===== 头部工具按钮（主题切换 / 设置） ===== */
+.header-tools {
+    position: absolute;
+    top: 20px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.tool-btn {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.tool-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent-border);
+    background: var(--accent-bg-soft);
+}
+
+.tool-btn .tool-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* 主题切换按钮：悬停用蓝色以区别于设置的琥珀色 */
+.tool-btn-theme:hover {
+    color: var(--blue);
+    border-color: var(--blue-border);
+    background: var(--blue-bg);
+}
+
+/* 图标按当前主题显示：深色模式显示太阳（点击切到浅色），浅色模式显示月亮 */
+.theme-icon {
+    display: none;
+}
+
+[data-theme='dark'] .theme-icon-sun {
+    display: inline;
+}
+
+[data-theme='light'] .theme-icon-moon {
+    display: inline;
+}
+
+/* ===== 通用卡片 ===== */
+.section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    transition: border-color var(--transition);
+}
+
+.section:hover {
+    border-color: var(--border-hover);
+}
+
+.section-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: var(--text);
+    letter-spacing: 0.03em;
+}
+
+.section-title .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.section-title .title-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* ===== 可收起模块：标题即开关 ===== */
+.section-title .collapse-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: color var(--transition);
+}
+
+.section-title .collapse-toggle:hover {
+    color: var(--accent);
+}
+
+.section-title .collapse-arrow {
+    font-size: 0.8rem;
+    line-height: 1;
+    color: var(--text-muted);
+    margin-left: 2px;
+    transition: transform var(--transition);
+}
+
+.section.is-collapsed .section-title {
+    margin-bottom: 0;
+}
+
+.section.is-collapsed .section-body {
+    display: none;
+}
+
+.section.is-collapsed .collapse-arrow {
+    transform: rotate(-90deg);
+}
+
+/* 收起后仍可见的总抽数徽标 */
+.section-title .total-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-bg-soft);
+    border: 1.5px solid var(--accent-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    white-space: nowrap;
+}
+
+/* 资源区内的「抽卡规划」入口按钮 */
+.section-title .btn-plan-open {
+    background: var(--blue-bg);
+    color: var(--blue);
+    border: 1.5px solid var(--blue-border);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.section-title .btn-plan-open:hover {
+    background: var(--blue-bg-hover);
+    border-color: var(--blue);
+    box-shadow: 0 0 16px var(--blue-glow);
+}
+
+.icon-resource {
+    background: var(--accent-bg);
+}
+
+.icon-plan {
+    background: var(--blue-bg-soft);
+}
+
+.icon-result {
+    background: var(--green-bg-soft);
+}
+
+/* ===== 底部 ===== */
+.footer {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 640px) {
+    .header h1 {
+        font-size: 1.4rem;
+    }
+
+    /* 窄屏下按钮不再绝对定位，避免与标题、图标重叠 */
+    .header-tools {
+        position: static;
+        justify-content: center;
+        margin-bottom: 14px;
+    }
+
+    .section {
+        padding: 16px;
+    }
+}

@@ -1,0 +1,301 @@
+/* ============================================================
+ * 计算结果区：表格、状态标签、汇总条
+ * ============================================================ */
+
+.result-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 700px;
+}
+
+.result-table th {
+    text-align: left;
+    padding: 10px 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    background: var(--bg-table-head);
+}
+
+.result-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border-row);
+    vertical-align: middle;
+}
+
+.result-table .step-row {
+    transition: background var(--transition);
+}
+
+.result-table .step-row:hover {
+    background: var(--bg-row-hover);
+}
+
+/* 空数据提示 */
+.result-table .empty-cell {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 30px;
+}
+
+/* ===== 单元格变体 ===== */
+.result-table .version-cell {
+    white-space: nowrap;
+}
+
+.result-table .version-cell small {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.result-table .role-name-cell {
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.result-table .pull-cell {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ===== 设置列：抽取 / 当日 / 上半卡池时间已过 ===== */
+.result-table .setting-cell {
+    white-space: nowrap;
+}
+
+/* 三个勾选项竖排，避免表格过宽 */
+.setting-cell .setting-cell-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.setting-cell .mini-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    padding: 1px 8px 1px 2px;
+    border-radius: 12px;
+    border: 1.5px solid transparent;
+    transition: all var(--transition);
+}
+
+.setting-cell .mini-check:hover {
+    border-color: var(--border);
+    background: var(--bg-hover);
+}
+
+.setting-cell .mini-check input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.setting-cell .mini-check.is-muted {
+    opacity: 0.5;
+}
+
+.setting-cell .mini-check.is-muted input[type="checkbox"] {
+    cursor: not-allowed;
+}
+
+.setting-cell .mini-check.check-skip input[type="checkbox"] {
+    accent-color: var(--orange);
+}
+
+/* ===== 状态样式 ===== */
+.result-table .status-enough,
+.result-table .status-short,
+.result-table .status-skip,
+.result-table .status-income {
+    white-space: nowrap;
+}
+
+.result-table .status-enough {
+    color: var(--green);
+    font-weight: 600;
+}
+
+.result-table .status-short {
+    color: var(--red);
+    font-weight: 600;
+}
+
+.result-table .status-skip {
+    color: var(--text-muted);
+}
+
+/* ===== 行变体 ===== */
+/* 版本收入行 */
+.result-table .step-row.row-income {
+    background: var(--purple-bg);
+}
+
+.result-table .row-income .version-cell small,
+.result-table .row-income .role-name-cell {
+    color: var(--purple);
+}
+
+.result-table .row-income .pull-cell-plus {
+    color: var(--green);
+}
+
+.result-table .row-income .status-income {
+    color: var(--green);
+    font-weight: 600;
+}
+
+/* 已跳过上半卡池的行 */
+.result-table .step-row.row-skipped {
+    opacity: 0.6;
+}
+
+.result-table .row-skipped .pull-cell-skipped {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+/* 当日获取标签 */
+.tag-day-one {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin-left: 4px;
+}
+
+/* 抽取武器标签 */
+.tag-weapon {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--orange-bg);
+    color: var(--orange);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin-left: 4px;
+}
+
+/* ===== 设置列：抽取武器（版本级开关，用橙色与卡池开关区分） ===== */
+.setting-cell .mini-check.check-weapon input[type="checkbox"] {
+    accent-color: var(--orange);
+}
+
+/* ===== 武库抽数列（不计入总抽数，独立推演） ===== */
+.result-table .th-arsenal {
+    color: var(--purple);
+}
+
+.result-table .arsenal-cell {
+    font-family: var(--font-mono);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.result-table .arsenal-cell .arsenal-value {
+    font-weight: 600;
+}
+
+.result-table .arsenal-cell .arsenal-value.is-gain {
+    color: var(--green);
+}
+
+.result-table .arsenal-cell .arsenal-value.is-cost {
+    color: var(--orange);
+}
+
+.result-table .arsenal-cell .arsenal-value.is-flat {
+    color: var(--purple);
+}
+
+.result-table .arsenal-cell .arsenal-balance {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* 未开启「武库配额获取」时整列隐藏 */
+.result-table.hide-arsenal .th-arsenal,
+.result-table.hide-arsenal .arsenal-cell {
+    display: none;
+}
+
+/* ===== 汇总条 ===== */
+.summary-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    margin-top: 14px;
+    align-items: center;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.summary-item .s-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+.summary-item .s-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+}
+
+.s-value.good {
+    color: var(--green);
+}
+
+.s-value.warn {
+    color: var(--red);
+}
+
+.s-value.neutral {
+    color: var(--text);
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 640px) {
+    .result-table {
+        font-size: 0.78rem;
+    }
+
+    .result-table th,
+    .result-table td {
+        padding: 7px 8px;
+    }
+}

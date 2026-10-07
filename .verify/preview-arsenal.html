@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="明日方舟：终末地抽卡资源统计与版本规划工具" />
+    <title>明日方舟：终末地 - 抽卡资源统计与规划</title>
+
+    <!--
+      主题启动脚本（唯一的行内脚本，必须同步执行）：
+      在样式表之前决定 data-theme，避免刷新时先闪一下深色再变成浅色。
+    -->
+    <script>
+        (function () {
+            var theme = 'dark';
+            try {
+                var saved = JSON.parse(localStorage.getItem('arknights_endfield_theme_v1') || 'null');
+                if (saved && (saved.theme === 'dark' || saved.theme === 'light')) {
+                    theme = saved.theme;
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    theme = 'light';
+                }
+            } catch (e) { /* localStorage 不可用时使用默认深色 */ }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
+    <!-- 样式：令牌/主题 → 布局 → 各功能区 -->
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/resources.css" />
+    <link rel="stylesheet" href="../css/plan.css" />
+    <link rel="stylesheet" href="../css/results.css" />
+    <link rel="stylesheet" href="../css/ui.css" />
+</head>
+
+<body>
+    <div class="container">
+        <!-- ===== HEADER ===== -->
+        <header class="header">
+            <div class="header-tools">
+                <button class="tool-btn tool-btn-theme" id="btnThemeToggle" type="button" title="切换主题" aria-label="切换深色 / 浅色主题">
+                    <span class="tool-icon theme-icon theme-icon-sun">☀️</span>
+                    <span class="tool-icon theme-icon theme-icon-moon">🌙</span>
+                    <span>主题</span>
+                </button>
+                <button class="tool-btn" id="btnOpenSettings" type="button" title="默认抽数设置">⚙️ 设置</button>
+            </div>
+            <span class="logo-icon">💠</span>
+            <h1>明日方舟：终末地</h1>
+            <p class="subtitle">抽卡资源统计 &amp; 版本规划工具</p>
+        </header>
+
+        <!-- ===== 抽卡资源统计（可收起） ===== -->
+        <section class="section" id="resource-section">
+            <div class="section-title">
+                <button class="collapse-toggle" id="btnToggleResources" type="button" aria-expanded="true"
+                    aria-controls="resourceBody" title="收起 / 展开抽卡资源统计">
+                    <span class="icon icon-resource">📊</span>
+                    <span class="title-text">抽卡资源统计</span>
+                    <span class="collapse-arrow" aria-hidden="true">▾</span>
+                </button>
+                <span class="total-badge" id="resourceTotalBadge" title="当前总抽数">🎯 0 抽</span>
+                <button class="btn-plan-open" id="btnOpenPlan" type="button" title="打开抽卡规划设置">📋 抽卡规划</button>
+            </div>
+
+            <div class="section-body" id="resourceBody">
+                <div class="resource-grid">
+                    <!-- 嵌晶玉 -->
+                    <div class="input-group">
+                        <label for="crystalJade">💎 嵌晶玉 <span class="rate">（500个 = 1抽）</span></label>
+                        <input type="number" id="crystalJade" value="0" min="0" step="1" placeholder="请输入嵌晶玉数量" />
+                        <span class="conversion" id="crystalJadeConv">= 0 抽</span>
+                    </div>
+                    <!-- 保障配额 -->
+                    <div class="input-group">
+                        <label for="guaranteeQuota">🛡️ 保障配额 <span class="rate">（25个 = 1抽）</span></label>
+                        <input type="number" id="guaranteeQuota" value="0" min="0" step="1" placeholder="请输入保障配额" />
+                        <span class="conversion" id="guaranteeQuotaConv">= 0 抽</span>
+                    </div>
+                    <!-- 衍质源石 -->
+                    <div class="input-group">
+                        <label for="sourceStone">💠 衍质源石 <span class="rate">（(数量-29)×75÷500）</span></label>
+                        <input type="number" id="sourceStone" value="0" min="0" step="1" placeholder="请输入衍质源石数量" />
+                        <span class="conversion" id="sourceStoneConv">= 0 抽（超出29的部分计算）</span>
+                    </div>
+                    <!-- 武库配额 -->
+                    <div class="input-group">
+                        <label for="arsenalQuota">🗡️ 武库配额 <span class="rate">（1980个 = 1抽）</span></label>
+                        <input type="number" id="arsenalQuota" value="0" min="0" step="1" placeholder="请输入武库配额" />
+                        <span class="conversion" id="arsenalQuotaConv">= 0.0 抽</span>
+                    </div>
+                    <!-- 手动抽数 -->
+                    <div class="input-group manual-pull-group">
+                        <label for="manualPulls">✏️ 手动抽数 <span class="rate"></span></label>
+                        <input type="number" id="manualPulls" value="0" step="1" placeholder="输入正数增加，负数减少" />
+                        <span class="conversion" id="manualPullsConv">直接计入总抽数</span>
+                    </div>
+                </div>
+
+                <!-- 衍质源石计入开关 -->
+                <div class="checkbox-row">
+                    <label id="includeStoneLabel" class="highlight-checkbox">
+                        <input type="checkbox" id="includeSourceStone" checked />
+                        <span>✅ 计入衍质源石</span>
+                    </label>
+                </div>
+
+                <!-- 总抽数展示 -->
+                <div class="total-display">
+                    <span class="total-label">🎯 当前总抽数：</span>
+                    <span class="total-value" id="totalPulls">0</span>
+                    <span class="total-detail" id="totalDetail"></span>
+                </div>
+                <!-- 武库配额单独展示 -->
+                <div class="total-display total-display-secondary">
+                    <span class="total-label">🗡️ 武库配额抽数：</span>
+                    <span class="total-value total-value-purple" id="arsenalPullsDisplay">0.0</span>
+                    <span class="total-detail total-detail-purple" id="arsenalDetail">不计入总抽数</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== 计算结果 ===== -->
+        <section class="section" id="result-section">
+            <div class="section-title">
+                <span class="icon icon-result">📈</span>计算结果
+                <span class="title-hint">（可在此勾选是否抽取 / 当日获取 / 上半卡池时间已过 / 抽取武器）</span>
+            </div>
+            <div class="result-table-wrap">
+                <table class="result-table" id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>步骤</th>
+                            <th>角色</th>
+                            <th>设置</th>
+                            <th>半场抽数</th>
+                            <th>判断时总抽数</th>
+                            <th>结果</th>
+                            <th>扣除后抽数</th>
+                            <th class="th-arsenal">武库抽数</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultTableBody">
+                        <tr>
+                            <td colspan="8" class="empty-cell">暂无数据，请添加版本并设置角色</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="summary-bar" id="summaryBar">
+                <div class="summary-item">
+                    <span class="s-label">初始总抽数</span>
+                    <span class="s-value neutral" id="summaryInitial">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="s-label">最终剩余抽数</span>
+                    <span class="s-value neutral" id="summaryRemaining">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="s-label">计划抽取角色数</span>
+                    <span class="s-value neutral" id="summaryTargetCount">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="s-label">足够 / 不足</span>
+                    <span class="s-value neutral" id="summaryStatus">-</span>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            数据自动保存至本地缓存 · 明日方舟：终末地抽卡规划工具 · 仅供参考
+        </footer>
+    </div>
+
+    <!-- ===== 抽卡规划弹窗 ===== -->
+    <div class="modal-overlay" id="planOverlay">
+        <div class="modal-panel plan-modal" role="dialog" aria-modal="true" aria-labelledby="planTitle">
+            <div class="modal-head">
+                <h3 id="planTitle">📋 抽卡规划</h3>
+                <button class="modal-close" id="btnClosePlan" type="button" aria-label="关闭抽卡规划">✕</button>
+            </div>
+            <p class="modal-hint">
+                按版本顺序处理。「是否抽取 / 当日获取 / 上半卡池时间已过 / 抽取武器」的设置已移到「计算结果」中，直接在表格里勾选即可。
+            </p>
+            <div class="modal-body">
+                <div class="version-list" id="versionList">
+                    <!-- 版本卡片由 js/ui/plan.js 动态渲染 -->
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-add" id="btnAddVersion" data-action="add-version" type="button" title="添加一个新版本">＋ 添加版本</button>
+                <button class="btn btn-reset" id="btnResetVersions" data-action="reset-versions" type="button">↺ 重置版本列表</button>
+                <button class="btn btn-clear-cache" id="btnClearCache" data-action="clear-cache" type="button">🗑️ 清除本地缓存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 默认抽数设置弹窗 ===== -->
+    <div class="modal-overlay" id="settingsOverlay">
+        <div class="modal-panel settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+            <h3 id="settingsTitle">⚙️ 默认抽数设置</h3>
+            <div class="setting-row">
+                <label for="settingLargePulls">🟠 大版本默认抽数</label>
+                <input type="number" id="settingLargePulls" min="1" step="1" value="104" />
+            </div>
+            <div class="setting-row">
+                <label for="settingSmallPulls">🔵 小版本默认抽数</label>
+                <input type="number" id="settingSmallPulls" min="1" step="1" value="73" />
+            </div>
+            <p class="setting-hint">修改后，新添加的版本将使用新的默认值。已有版本不受影响。</p>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row setting-row-switch">
+                <label for="settingArsenalPlan">🗡️ 武库配额获取</label>
+                <input type="checkbox" id="settingArsenalPlan" class="setting-switch" />
+            </div>
+            <p class="setting-hint">
+                开启后，结果表会多出「武库抽数」列（不计入总抽数）。<br />
+                规则：每个被抽取的角色卡池 <b>+8160</b> 武库配额（双角色版本两个卡池都抽就加两次）；
+                在结果表「设置」列给角色勾选「抽取武器」则每把武器 <b>-15840</b> 武库配额（两个角色可分别勾选）。
+            </p>
+
+            <div class="setting-actions">
+                <button class="btn-cancel-settings" id="btnCancelSettings" type="button">取消</button>
+                <button class="btn-save-settings" id="btnSaveSettings" type="button">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Toast ===== -->
+    <div class="toast" id="toast"></div>
+
+    <!--
+      脚本按依赖顺序加载（均为经典脚本，file:// 直接打开也能运行）：
+      基础能力 → 计算层 → 界面模块 → 刷新调度 → 启动入口
+    -->
+    <script src="../js/core/namespace.js"></script>
+    <script src="../js/core/util.js"></script>
+    <script src="../js/core/storage.js"></script>
+    <script src="../js/core/store.js"></script>
+    <script src="../js/core/calc.js"></script>
+    <script src="../js/ui/toast.js"></script>
+    <script src="../js/ui/theme.js"></script>
+    <script src="../js/ui/resources.js"></script>
+    <script src="../js/ui/plan.js"></script>
+    <script src="../js/ui/plan-modal.js"></script>
+    <script src="../js/ui/results.js"></script>
+    <script src="../js/ui/settings-modal.js"></script>
+    <script src="../js/ui/page-actions.js"></script>
+    <script src="../js/renderer.js"></script>
+    <script src="../js/main.js"></script>
+<script>window.addEventListener("load", function () { ZMD.store.setResource("arsenalQuota", 3960); ZMD.store.setSettings({ arsenalPlanEnabled: true }); ZMD.renderer.cancelPending(); ZMD.renderer.renderAll(true); setTimeout(function () {     ["role1Weapon", "role2Weapon"].forEach(function (field) {         var box = document.querySelector("#resultTableBody [data-field=\"" + field + "\"]");         if (box && !box.checked) {             box.checked = true;             box.dispatchEvent(new Event("change", { bubbles: true }));         }     }); }, 50); });</script>
+</body>
+
+</html>
