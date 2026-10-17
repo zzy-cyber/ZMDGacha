@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>image-util 浏览器自检</title>
+    <style>
+        body { font-family: monospace; padding: 16px; background: #111; color: #ddd; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+
+<body>
+    <pre id="result">running...</pre>
+
+    <script src="../js/core/namespace.js"></script>
+    <script src="../js/core/image-util.js"></script>
+    <script>
+        (function () {
+            var out = [];
+            var ZMD = window.ZMD;
+
+            function makeFile(width, height, name) {
+                var canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                var ctx = canvas.getContext('2d');
+                var gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#26364a');
+                gradient.addColorStop(1, '#f0b940');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(width * 0.2, height * 0.2, width * 0.6, height * 0.6);
+
+                return new Promise(function (resolve) {
+                    canvas.toBlob(function (blob) {
+                        resolve(new File([blob], name || 'test.png', { type: 'image/png' }));
+                    }, 'image/png');
+                });
+            }
+
+            function measure(dataUrl) {
+                return new Promise(function (resolve) {
+                    var img = new Image();
+                    img.onload = function () {
+                        resolve(img.naturalWidth + 'x' + img.naturalHeight);
+                    };
+                    img.onerror = function () { resolve('load-error'); };
+                    img.src = dataUrl;
+                });
+            }
+
+            function check(kind, file) {
+                return ZMD.imageUtil.processFile(file, kind).then(function (result) {
+                    return measure(result.dataUrl).then(function (dimensions) {
+                        var mime = result.dataUrl.slice(5, result.dataUrl.indexOf(';'));
+                        out.push(kind + ': OK mime=' + mime + ' bytes=' + result.bytes +
+                            ' declared=' + result.width + 'x' + result.height +
+                            ' actual=' + dimensions);
+                    });
+                }).catch(function (error) {
+                    out.push(kind + ': FAIL ' + error.message);
+                });
+            }
+
+            (async function () {
+                out.push('webp support=' + (document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0));
+                await check('avatar', await makeFile(1200, 900, 'wide.png'));
+                await check('weapon', await makeFile(300, 900, 'tall.png'));
+
+                await ZMD.imageUtil.processFile(new File(['x'], 'note.txt', { type: 'text/plain' }), 'avatar')
+                    .then(function () { out.push('invalid type: FAIL (accepted)'); })
+                    .catch(function (error) { out.push('invalid type: rejected -> ' + error.message); });
+
+                document.getElementById('result').textContent = out.join('\n');
+                document.body.setAttribute('data-done', '1');
+            })();
+        })();
+    </script>
+</body>
+
+</html>

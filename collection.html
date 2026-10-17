@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="明日方舟：终末地角色与武器收集统计 - 拥有率与专武持有率" />
+    <title>角色 &amp; 武器收集统计 - 明日方舟：终末地</title>
+
+    <!--
+      主题启动脚本：与 index.html 完全一致，在样式表之前决定 data-theme，
+      避免刷新时先闪一下深色再变成浅色。两个页面共享同一个主题缓存键。
+    -->
+    <script>
+        (function () {
+            var theme = 'dark';
+            try {
+                var saved = JSON.parse(localStorage.getItem('arknights_endfield_theme_v1') || 'null');
+                if (saved && (saved.theme === 'dark' || saved.theme === 'light')) {
+                    theme = saved.theme;
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    theme = 'light';
+                }
+            } catch (e) { /* localStorage 不可用时使用默认深色 */ }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
+    <!-- 样式：与主页面共用设计令牌 / 布局 / 通用组件，只额外引入本页样式 -->
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/ui.css" />
+    <link rel="stylesheet" href="css/collection.css" />
+</head>
+
+<body>
+    <div class="container">
+        <!-- ===== HEADER ===== -->
+        <header class="header">
+            <div class="header-tools">
+                <a class="tool-btn tool-btn-back" href="index.html" title="返回抽卡资源统计与规划">📋 抽卡规划</a>
+                <button class="tool-btn tool-btn-theme" id="btnThemeToggle" type="button" title="切换主题"
+                    aria-label="切换深色 / 浅色主题">
+                    <span class="tool-icon theme-icon theme-icon-sun">☀️</span>
+                    <span class="tool-icon theme-icon theme-icon-moon">🌙</span>
+                    <span>主题</span>
+                </button>
+            </div>
+            <span class="logo-icon">💠</span>
+            <h1>明日方舟：终末地</h1>
+            <p class="subtitle">角色 &amp; 武器收集统计</p>
+        </header>
+
+        <!-- ===== 收集总览 ===== -->
+        <section class="section" id="stats-section">
+            <div class="section-title">
+                <span class="icon icon-collection">📊</span>收集总览
+                <span class="title-hint">勾选已拥有的角色与专武，实时统计收集进度</span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card stat-char">
+                    <span class="stat-label">🎭 角色拥有率</span>
+                    <div class="stat-main">
+                        <span class="stat-fraction"><b id="statCharOwned">0</b>/<span id="statCharTotal">0</span></span>
+                        <span class="stat-percent" id="statCharPercent">0%</span>
+                    </div>
+                    <div class="stat-bar" aria-hidden="true"><i id="statCharBar"></i></div>
+                    <span class="stat-note">已拥有角色 / 全部角色</span>
+                </div>
+
+                <div class="stat-card stat-weapon">
+                    <span class="stat-label">🗡️ 专武持有率（已拥有角色）</span>
+                    <div class="stat-main">
+                        <span class="stat-fraction"><b id="statWeaponOwned">0</b>/<span id="statWeaponBase">0</span></span>
+                        <span class="stat-percent" id="statWeaponPercent">0%</span>
+                    </div>
+                    <div class="stat-bar" aria-hidden="true"><i id="statWeaponBar"></i></div>
+                    <span class="stat-note" id="statWeaponNote">拥有角色后开始统计</span>
+                </div>
+            </div>
+
+            <p class="stat-meta" id="statMeta">0 个版本 · 0 名角色 · 0 名已拥有 · 0 把已拥有专武</p>
+        </section>
+
+        <!-- ===== 收集清单 ===== -->
+        <section class="section" id="collection-section">
+            <div class="section-title">
+                <span class="icon icon-collection">🗂️</span>收集清单
+                <span class="title-hint">一行一个角色及专武，拥有状态直接在行内勾选</span>
+                <div class="collection-toolbar">
+                    <div class="filter-group" id="filterGroup" role="group" aria-label="筛选角色">
+                        <button class="filter-btn" type="button" data-filter="all" aria-pressed="true">
+                            全部角色 <span class="filter-count">0</span>
+                        </button>
+                        <button class="filter-btn" type="button" data-filter="owned" aria-pressed="false">
+                            拥有角色 <span class="filter-count">0</span>
+                        </button>
+                        <button class="filter-btn" type="button" data-filter="unowned" aria-pressed="false">
+                            未拥有角色 <span class="filter-count">0</span>
+                        </button>
+                    </div>
+                    <button class="btn btn-add" id="btnAddVersion" type="button" title="填写版本与角色信息">＋ 添加版本</button>
+                </div>
+            </div>
+
+            <div class="version-collection" id="collectionList">
+                <!-- 版本分组与「一行一个角色」的清单由 js/ui/collection.js 动态渲染 -->
+            </div>
+
+            <p class="collection-hint">
+                💡 图片建议：角色头像 <b>456×564</b>，武器图片 <b>256×256</b>（PNG / JPG / WebP 均可）。
+                在「添加 / 编辑版本」弹窗内上传，保存后自动裁切压缩并保存在本机浏览器缓存中，不会上传到服务器。
+            </p>
+        </section>
+
+        <footer class="footer">
+            数据自动保存至本地缓存 · 明日方舟：终末地收集统计 · 仅供参考
+        </footer>
+    </div>
+
+    <!-- ===== 添加 / 编辑版本弹窗（只用于填写信息，不在主页单独显示） ===== -->
+    <div class="modal-overlay" id="editorOverlay">
+        <div class="modal-panel plan-modal editor-modal" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+            <div class="modal-head">
+                <h3 id="editorTitle">＋ 添加版本</h3>
+                <button class="modal-close" id="btnCloseEditor" type="button" aria-label="关闭添加版本">✕</button>
+            </div>
+            <p class="modal-hint">
+                这里只填写版本与角色信息。保存后，角色与专武会按「一行一个角色」显示在主页，
+                拥有状态请在主页行内勾选。
+            </p>
+            <div class="modal-body">
+                <div class="editor-version-field">
+                    <label class="field-label" for="editorVersionName">🏷️ 版本名称</label>
+                    <input id="editorVersionName" type="text" data-field="versionName"
+                        placeholder="例如 2.1「星尘」" maxlength="40" autocomplete="off" />
+                </div>
+                <div class="editor-chars" id="editorChars">
+                    <!-- 角色编辑块由 js/ui/collection.js 动态渲染 -->
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-add-char editor-add-char" id="btnEditorAddChar" type="button">＋ 添加角色</button>
+                <button class="btn btn-reset" id="btnCancelEditor" type="button">取消</button>
+                <button class="btn btn-add" id="btnSaveEditor" type="button">💾 保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 共用的图片选择器（由弹窗内的图片槽位触发） -->
+    <input type="file" id="imageFileInput" class="visually-hidden"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif" tabindex="-1" aria-hidden="true" />
+
+    <!-- ===== Toast ===== -->
+    <div class="toast" id="toast"></div>
+
+    <!--
+      脚本按依赖顺序加载（经典脚本，file:// 直接打开也能运行）：
+      基础能力 → 统计与状态 → 图片处理 → 界面模块 → 启动入口
+    -->
+    <script src="js/core/namespace.js"></script>
+    <script src="js/core/util.js"></script>
+    <script src="js/core/storage.js"></script>
+    <script src="js/core/collection-calc.js"></script>
+    <script src="js/core/collection-store.js"></script>
+    <script src="js/core/image-util.js"></script>
+    <script src="js/ui/toast.js"></script>
+    <script src="js/ui/theme.js"></script>
+    <script src="js/ui/collection.js"></script>
+    <script src="js/collection-main.js"></script>
+</body>
+
+</html>

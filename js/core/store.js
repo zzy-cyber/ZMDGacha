@@ -333,6 +333,8 @@
     function resetAll() {
         storage.remove(KEYS.PLANNER);
         storage.remove(KEYS.SETTINGS);
+        // 收集统计页的数据也属于「本地缓存」，一并清空
+        storage.remove(KEYS.COLLECTION);
         state.resources = {
             crystalJade: 0,
             guaranteeQuota: 0,

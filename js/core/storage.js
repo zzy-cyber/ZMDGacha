@@ -15,7 +15,9 @@
         /** 默认抽数设置 */
         SETTINGS: 'arknights_endfield_settings_v1',
         /** 主题偏好 */
-        THEME: 'arknights_endfield_theme_v1'
+        THEME: 'arknights_endfield_theme_v1',
+        /** 角色 & 武器收集统计（版本、角色、图片、拥有状态） */
+        COLLECTION: 'arknights_endfield_collection_v1'
     };
 
     /** 探测 localStorage 是否真的可写（部分浏览器仅是存在但写入即抛错）。 */

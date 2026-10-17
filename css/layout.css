@@ -83,6 +83,25 @@
     line-height: 1;
 }
 
+/* 头部里的链接型工具按钮（收集统计页入口 / 返回抽卡规划） */
+.header-tools a.tool-btn {
+    text-decoration: none;
+}
+
+/* 收集统计入口：悬停用紫色，与页面内的专武统计呼应 */
+.tool-btn-collection:hover {
+    color: var(--purple);
+    border-color: var(--purple-border);
+    background: var(--purple-bg);
+}
+
+/* 返回按钮：悬停用蓝色 */
+.tool-btn-back:hover {
+    color: var(--blue);
+    border-color: var(--blue-border);
+    background: var(--blue-bg);
+}
+
 /* 主题切换按钮：悬停用蓝色以区别于设置的琥珀色 */
 .tool-btn-theme:hover {
     color: var(--blue);

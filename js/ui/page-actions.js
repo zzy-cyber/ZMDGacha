@@ -40,9 +40,9 @@
         ZMD.toast.show('🔄 版本列表已重置');
     }
 
-    /** 清除本地缓存（资源 + 规划 + 设置），并恢复到初始状态。 */
+    /** 清除本地缓存（资源 + 规划 + 设置 + 收集统计），并恢复到初始状态。 */
     function clearCache() {
-        if (!window.confirm('确定要清除所有本地缓存数据吗？包括资源数据和版本规划都将被清空。')) return;
+        if (!window.confirm('确定要清除所有本地缓存数据吗？资源数据、版本规划以及收集统计（角色 / 武器图片）都将被清空。')) return;
 
         store.resetAll();
         ZMD.ui.resources.syncInputsFromState();
