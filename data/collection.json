@@ -1,5 +1,132 @@
 {
   "schemaVersion": 2,
-  "publishedAt": "",
-  "versions": []
+  "publishedAt": "2026-10-18T08:33:20.394Z",
+  "versions": [
+    {
+      "id": "v_udbqm3",
+      "name": "零号委托",
+      "characters": [
+        {
+          "id": "c_1limjuk",
+          "name": "莱万汀",
+          "avatar": "assets/collection/c_1limjuk-fa832ed6.webp",
+          "weaponName": "熔铸火焰",
+          "weaponImage": "assets/collection/c_1limjuk-weapon-fad64f59.webp"
+        },
+        {
+          "id": "c_kbc2hs",
+          "name": "洁尔佩塔",
+          "avatar": "assets/collection/c_kbc2hs-1efac515.webp",
+          "weaponName": "使命必达",
+          "weaponImage": "assets/collection/c_kbc2hs-weapon-7c69ef6b.webp"
+        },
+        {
+          "id": "c_11r14o4",
+          "name": "伊冯",
+          "avatar": "assets/collection/c_11r14o4-f988c889.webp",
+          "weaponName": "艺术暴君",
+          "weaponImage": "assets/collection/c_11r14o4-weapon-3f51e36c.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_1a68brc",
+      "name": "新潮起，故渊离",
+      "characters": [
+        {
+          "id": "c_1lakpbg",
+          "name": "汤汤",
+          "avatar": "assets/collection/c_1lakpbg-53593834.webp",
+          "weaponName": "落草",
+          "weaponImage": "assets/collection/c_1lakpbg-weapon-a5a30e38.webp"
+        },
+        {
+          "id": "c_1iqbuz4",
+          "name": "洛茜",
+          "avatar": "assets/collection/c_1iqbuz4-b33cc633.webp",
+          "weaponName": "狼之绯",
+          "weaponImage": "assets/collection/c_1iqbuz4-weapon-6d192aca.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_hvs6eg",
+      "name": "春晓时",
+      "characters": [
+        {
+          "id": "c_1dfa4f0",
+          "name": "庄方宜",
+          "avatar": "assets/collection/c_1dfa4f0-b61e990b.webp",
+          "weaponName": "孤舟",
+          "weaponImage": "assets/collection/c_1dfa4f0-weapon-7ddab69c.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_y8t6c0",
+      "name": "寻遗散记",
+      "characters": [
+        {
+          "id": "c_14yn44",
+          "name": "弭弗",
+          "avatar": "assets/collection/c_14yn44-78ccdb44.webp",
+          "weaponName": "赤缨",
+          "weaponImage": "assets/collection/c_14yn44-weapon-55ce6698.webp"
+        },
+        {
+          "id": "c_q1z8g2",
+          "name": "卡缪",
+          "avatar": "assets/collection/c_q1z8g2-46e3592a.webp",
+          "weaponName": "镀红祝福",
+          "weaponImage": "assets/collection/c_q1z8g2-weapon-3460f71e.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_1b7mtf8",
+      "name": "应龙吟",
+      "characters": [
+        {
+          "id": "c_19g4nag",
+          "name": "诀",
+          "avatar": "assets/collection/c_19g4nag-2970a88c.webp",
+          "weaponName": "四二式·肃阵",
+          "weaponImage": "assets/collection/c_19g4nag-weapon-807150dd.webp"
+        },
+        {
+          "id": "c_ftno5a",
+          "name": "梨诺",
+          "avatar": "assets/collection/c_ftno5a-27dddda9.webp",
+          "weaponName": "曜夜的首演",
+          "weaponImage": "assets/collection/c_ftno5a-weapon-8126a29c.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_cqsag0",
+      "name": "雪凇幽梦",
+      "characters": [
+        {
+          "id": "c_6sjmt7",
+          "name": "提弗洛斯",
+          "avatar": "assets/collection/c_6sjmt7-77d8bd33.webp",
+          "weaponName": "寒夜幽影",
+          "weaponImage": "assets/collection/c_6sjmt7-weapon-5b0263e9.webp"
+        }
+      ]
+    },
+    {
+      "id": "v_1pnh4o2",
+      "name": "丹青渡",
+      "characters": [
+        {
+          "id": "c_1jtx2fk",
+          "name": "祀",
+          "avatar": "assets/collection/c_1jtx2fk-165512ff.webp",
+          "weaponName": "玉中身",
+          "weaponImage": "assets/collection/c_1jtx2fk-weapon-dfd9e9bf.webp"
+        }
+      ]
+    }
+  ]
 }
