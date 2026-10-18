@@ -384,21 +384,21 @@
     overflow: hidden;
     background: var(--bg-input);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--text-muted);
-    font-size: 1.5rem;
+    font-size: 2rem;
     line-height: 1;
 }
 
 /* 缩略图放大到便于辨认的尺寸：头像沿用 456:564 比例，专武保持正方形 */
 .roster-thumb-avatar {
-    width: 76px;
-    height: 94px;
+    width: 114px;
+    height: 141px;
 }
 
 .roster-thumb-weapon {
-    width: 76px;
-    height: 76px;
+    width: 114px;
+    height: 114px;
 }
 
 .roster-thumb img {
@@ -416,7 +416,7 @@
 }
 
 .roster-name {
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
@@ -425,14 +425,14 @@
 }
 
 .roster-sub {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     white-space: nowrap;
 }
 
 .roster-divider {
     width: 1px;
-    height: 56px;
+    height: 84px;
     background: var(--border);
 }
 
@@ -625,8 +625,8 @@
 
 .editor-char-grid {
     display: grid;
-    grid-template-columns: 148px minmax(0, 1fr) 148px;
-    gap: 16px;
+    grid-template-columns: 222px minmax(0, 1fr) 222px;
+    gap: 18px;
     align-items: start;
 }
 
@@ -865,7 +865,7 @@
     }
 
     .editor-char-grid {
-        grid-template-columns: 124px minmax(0, 1fr);
+        grid-template-columns: 186px minmax(0, 1fr);
     }
 
     .editor-char-grid .editor-media:last-child {
@@ -901,13 +901,13 @@
     }
 
     .roster-thumb-avatar {
-        width: 62px;
-        height: 77px;
+        width: 93px;
+        height: 115px;
     }
 
     .roster-thumb-weapon {
-        width: 62px;
-        height: 62px;
+        width: 93px;
+        height: 93px;
     }
 
     .own-check {
@@ -916,8 +916,8 @@
     }
 
     .editor-char-grid {
-        grid-template-columns: 104px minmax(0, 1fr);
-        gap: 12px;
+        grid-template-columns: 156px minmax(0, 1fr);
+        gap: 14px;
     }
 
     .editor-char {
