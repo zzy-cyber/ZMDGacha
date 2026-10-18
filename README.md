@@ -5,6 +5,9 @@
 > 数据缓存在 IndexedDB。Chrome / Edge 在 `file://` 下会禁用 IndexedDB，
 > 此时工具会自动退回内存缓存：功能正常，但刷新后数据会丢失。
 > 需要长期保存数据时，请用任意静态服务器打开（Firefox 直接双击打开也支持）。
+>
+> 收集页的清单内容由站长发布到 `data/collection.json`，随站点一起部署；
+> 只有「拥有状态」留在访客本机。发布流程见下文「发布收集清单」。
 
 ---
 
@@ -29,7 +32,8 @@ js/
     store.js            抽卡规划状态中心：资源 / 版本列表 / 设置 + 变更标记（含字段名）+ 持久化
     calc.js             纯计算层：资源换算 + 抽卡推演 + 武库配额推演（不接触 DOM）
     collection-calc.js  收集统计纯计算层：角色拥有率 / 专武持有率 / 筛选
-    collection-store.js 收集统计状态中心：版本 / 角色 / 图片 / 拥有状态 + 持久化
+    collection-store.js 收集统计状态中心：内容与拥有状态分离 + 稳定 id + 发布文档
+    collection-remote.js 读取线上发布内容（data/collection.json），失败静默降级
     image-util.js       图片裁切压缩（456×564 / 256×256，优先 WebP）
   ui/
     toast.js            轻提示
@@ -40,10 +44,19 @@ js/
     results.js          结果表格、汇总、武库抽数列，以及结果表里的勾选设置
     settings-modal.js   默认抽数 + 武库配额获取开关
     page-actions.js     添加版本 / 重置 / 清除缓存
-    collection.js       收集统计页渲染与交互
+    collection.js       收集统计页渲染与交互（含只读模式）
+    collection-publish.js 导出 / 导入发布草稿（仅编辑模式）
   renderer.js           抽卡规划页的界面刷新调度：按变更类型决定刷新哪些区域
   main.js               抽卡规划页启动入口
-  collection-main.js    收集统计页启动入口
+  collection-main.js    收集统计页启动入口（编辑 / 只读两种模式）
+tools/
+  publish-collection.mjs 发布脚本（零依赖）：草稿 → data/collection.json + 图片
+data/
+  collection.json       发布后的公共内容（脚本生成，提交仓库）
+assets/
+  collection/           发布后的角色头像 / 武器图片（脚本生成，提交仓库）
+_headers                Cloudflare Pages 缓存策略
+.assetsignore           Pages 上传时排除 tools / .verify
 .verify/                校验脚本（开发自用，可整目录删除）
 ```
 
@@ -123,8 +136,9 @@ js/
 | --- | --- |
 | 添加 / 编辑版本 | 点击「＋ 添加版本」打开弹窗填写版本名与角色信息。弹窗**只用于填写信息**，不在主页单独占一块；保存后主页才出现清单 |
 | 一行一个角色 | 每个「角色 + 它的一把专武」占一整行，下一个角色在下一行；窄屏下角色与专武在同一个块内上下排列 |
-| 上传图片 | 在弹窗内点击角色头像槽位（456×564）或武器槽位（256×256），支持 PNG / JPG / WebP / GIF / BMP；浏览器会**等比缩放 + 居中裁切**并优先压缩成 WebP，保存后写入本地缓存 |
+| 上传图片 | 在弹窗内点击角色头像槽位（456×564）或武器槽位（256×256），支持 PNG / JPG / WebP / GIF / BMP；浏览器会**等比缩放 + 居中裁切**并优先压缩成 WebP，保存后写入本地缓存；发布时再拆成独立图片文件 |
 | 拥有勾选 | 主页每行内直接勾选「拥有角色」与「拥有专武」，勾选后立即更新统计；名称、图片等静态信息通过行尾「✎」或版本标题「✎ 编辑」修改 |
+| 编辑权限 | 本地 `file://` 打开或线上 `?edit=1` 为编辑模式；普通访客只读，看不到「添加版本 / 编辑 / 删除 / 导出」按钮，但可以勾选自己的拥有状态 |
 | 角色拥有率 | 顶部大卡显示分数 `已拥有 / 全部` 与百分比（如 `4/6`、`66.7%`），每个版本标题栏也有各自的 `x/y · 百分比` |
 | 专武持有率 | 统计范围**仅限已拥有角色**：分子 = 已拥有角色中拥有专武的人数，分母 = 已拥有角色数。未拥有角色的专武不会进入分子或分母 |
 | 筛选 | 「全部角色 / 拥有角色 / 未拥有角色」，按钮上带实时数量；筛选状态会记住 |
@@ -137,12 +151,53 @@ js/
   总览下方的统计说明会注明「其中 N 把属于已拥有角色」。
 - 弹窗内的修改先存在草稿里，**取消不会写入**；保存时才整体替换该版本的名称与角色列表，
   已有的拥有勾选会保留。
-- 所有图片只保存在本机浏览器缓存里，不会上传到任何服务器。
+- 编辑时图片只写在本机浏览器缓存，发布时由脚本解码成独立文件随站点分发，
+  不会上传到任何第三方服务器。
   图片压缩后的目标体积上限：头像约 180KB、武器约 90KB。图片在弹窗内只是预览，
   点「保存」才写入缓存；如果缓存写满，本次保存会整体撤销并保留弹窗，
   方便删掉部分图片后重试，避免出现「界面上有图、刷新后丢失」的假象。
 - 收集统计使用独立缓存键 `arknights_endfield_collection_v1`；
   主页面「🗑️ 清除本地缓存」会同时清空它（确认框里有说明）。
+
+---
+
+### 发布收集清单（纯静态，无后端）
+
+清单内容（版本、角色、专武、图片）由站长维护，随站点一起部署，**访客只读**；
+「拥有状态」属于每个访客自己，只存在本机 IndexedDB。两者靠角色的稳定 `id` 对应：
+远端内容整体替换时，按 id 把本地勾选搬回去。
+
+一次发布 = 三步：
+
+1. 打开 `collection.html` 改内容并保存（本地 `file://` 双击即为编辑模式）；
+2. 点「📤 导出发布包」，浏览器下载 `collection-draft.json`；
+3. 项目根目录执行 `npm run publish`。
+
+脚本 `tools/publish-collection.mjs`（零依赖，Node 18+）会：
+
+- 自动去「下载」目录找最新的 `collection-draft.json`（`--input <路径>` 可指定）；
+- 把每张 data URL 解码成 `assets/collection/<角色id>-<内容哈希>.webp`；
+- 生成 `data/collection.json`（**不含任何拥有状态**）；
+- 删除不再被引用的旧图（`--prune`）；
+- `git add data assets` → 有变更才 commit → `git push`（`--git`）。
+
+Pages 接仓库后 push 即部署，访客刷新即可看到。
+
+| 命令 | 作用 |
+| --- | --- |
+| `npm run publish` | 生成 + 清理 + 提交 + 推送 |
+| `npm run publish:dry` | 只打印会发生什么，不写文件 |
+
+编辑模式判定：本地 `file://` 打开、或线上加 `?edit=1` 视为编辑；其余只读
+（没有编辑按钮，只能勾选拥有状态）。只读只是交互层限制：纯静态站点没有写接口，
+访客改不到别人的数据。
+
+首次发布注意：老数据没有 `id`，脚本会要求「先在收集页打开一次」完成迁移。
+迁移出的 id 由「版本名 + 角色名」哈希得到，站长与访客各自迁移后是同一个 id，
+所以升级后用户已有的勾选不会丢；一旦写进发布文档，后续改名也不会换 id。
+
+缓存策略见 `_headers`：`data/collection.json` 每次协商（`max-age=0`），
+图片文件名带内容哈希，因此可以 `immutable` 长期缓存。
 
 ---
 
@@ -193,6 +248,15 @@ js/
   `collectionCalc` 是纯函数层（拥有率 / 专武持有率 / 筛选），`imageUtil` 只负责
   把上传图片裁切成固定尺寸。收集页不依赖抽卡规划的 `store`，两边的缓存互不影响
   （主题偏好共享，清除缓存会一起清空）。
+- **内容与拥有状态分离**：`versions[].characters[]` 在内存里仍同时装着公共内容与
+  个人勾选（渲染层因此完全不用改），但落盘时拆成 `versions` 和 `owned` 两份，
+  发布文档 `toPublishDoc()` 也会剥掉 `owned`。远端内容整体替换时，
+  `applyRemote()` 先把本地勾选按 id 收集起来，再回填到新列表上，
+  所以站长增删角色、访客升级都不会丢勾选。
+- **id 是唯一关联键**：`normalizeCharacter()` 在旧数据缺 id 时用
+  「版本名 + 角色名」哈希补齐，站长与访客各自迁移后得到同一个 id。
+  `CHARACTER_FIELDS` 是可写字段白名单，不要把 `id` 加进去；
+  编辑弹窗的 `cloneCharacter()` 必须把 id 一起复制，否则保存后勾选全部失效。
 - **弹窗草稿只保存一次**：添加 / 编辑版本时，名称与图片先写入 UI 内部的 `draft`，
   取消直接丢弃；保存时才整体替换 `collectionStore` 里的版本并写入缓存。
   主页只负责展示清单与勾选，所以输入不会被重绘打断，也避免了空版本 / 半成品数据。
@@ -301,10 +365,14 @@ node .verify/dom-test.js      # 用 jsdom 真实加载页面，模拟点击验�
 node .verify/arsenal-test.js  # 武库配额功能 + 结构字段实时刷新：开关、+8160 / 每把武器 -15840、卡片重建
 node .verify/migrate-test.js  # 旧缓存兼容：版本级 pullWeapon 迁移为每个角色的武器勾选
 node .verify/collection-test.js # 收集统计页：添加/编辑弹窗、一行一个角色、主页勾选、拥有率与专武持有率、筛选、图片、主题与入口
+node .verify/publish-test.js  # 发布脚本：dry-run、图片落盘与哈希命名、幂等、--prune、缺 id 报错
+node .verify/publish-data-test.js # 数据层：稳定 id、发布文档剥离拥有状态、远端覆盖后勾选保留、删角色不串位
+node .verify/readonly-test.js # 只读模式：隐藏编辑入口、勾选仍可用、?edit=1 恢复编辑
 node .verify/make-preview.js  # 生成预览页（.verify/preview-*.html），配合无头浏览器截图核对排版
 ```
 
-> `dom-test.js` / `arsenal-test.js` / `migrate-test.js` / `collection-test.js` 依赖 `jsdom`
+> `dom-test.js` / `arsenal-test.js` / `migrate-test.js` / `collection-test.js` /
+> `publish-data-test.js` / `readonly-test.js` 依赖 `jsdom`
 > （`npm i -g jsdom` 或本地安装）。
 > `.verify/image-test.html` 是图片裁切压缩的真实浏览器自检页（需要在浏览器里打开，
 > 用无头浏览器截图查看结果），不属于必需文件。
@@ -314,13 +382,18 @@ node .verify/make-preview.js  # 生成预览页（.verify/preview-*.html），�
 
 ## 七、数据说明
 
-- 所有数据只保存在浏览器本地（IndexedDB 数据库 `arknights_endfield`，对象仓库 `cache`），
-  不上传任何服务器。
+- 抽卡规划数据与收集页的「拥有状态」只保存在浏览器本地
+  （IndexedDB 数据库 `arknights_endfield`，对象仓库 `cache`），不上传任何服务器。
+- 收集页的「内容」（版本 / 角色 / 专武 / 图片）来自站点上的 `data/collection.json`，
+  由站长随站点一起发布，所以所有访客看到的是同一份清单。
 - 缓存键：
   - `arknights_endfield_planner_v2`：资源 + 抽卡规划；
   - `arknights_endfield_settings_v1`：默认抽数与界面开关；
   - `arknights_endfield_theme_v1`：深色 / 浅色主题（两个页面共享）；
-  - `arknights_endfield_collection_v1`：收集统计的版本 / 角色 / 图片 / 拥有状态 / 筛选。
+  - `arknights_endfield_collection_v1`：收集统计的版本 / 角色 / 图片 / 拥有状态 / 筛选；
+    落盘时把内容与 `owned` 映射分开存，远端内容更新时按角色 id 找回勾选。
+- 角色与版本都有稳定 `id`：新数据用 UUID，旧数据用「版本名 + 角色名」哈希补齐。
+  发布文档只保留 `id` 与内容字段，`owned / weaponOwned` 永远不会出现在线上文件里。
 - 从旧版本升级时，上面 4 个键会从 `localStorage` 自动迁移进 IndexedDB，
   迁移成功后旧键被删除；若新库里已有同名数据，则以新库为准。
 - 「🗑️ 清除本地缓存」会同时清空资源数据、版本规划、默认抽数、武库配额开关，

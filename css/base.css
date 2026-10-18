@@ -215,6 +215,11 @@ html.theme-animating body *:not(.modal-overlay):not(.toast) {
     padding: 20px 16px 40px;
 }
 
+/* hidden 属性优先于任何布局声明（避免组件的 display 把它覆盖掉） */
+[hidden] {
+    display: none !important;
+}
+
 /* 通用可访问性：仅屏幕阅读器可见 */
 .visually-hidden {
     position: absolute;

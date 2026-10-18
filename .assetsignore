@@ -1,0 +1,7 @@
+# 只影响 Cloudflare Pages 上传的内容，不影响 git
+# 草稿里是 base64 图片，绝不能作为静态资源公开
+tools
+.verify
+.git
+.gitignore
+.assetsignore

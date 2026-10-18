@@ -135,6 +135,20 @@
     flex-wrap: wrap;
 }
 
+.collection-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* 「添加版本」与发布按钮保持同一尺寸，避免工具栏高低不齐 */
+.collection-actions .btn {
+    padding: 6px 14px;
+    border-radius: 18px;
+    font-size: 0.8rem;
+}
+
 .filter-group {
     display: inline-flex;
     gap: 2px;
@@ -281,6 +295,42 @@
     box-shadow: 0 0 14px var(--purple-focus-ring);
 }
 
+/* 编辑模式下的发布相关小按钮（与工具栏其他控件同一尺寸） */
+.btn-compact {
+    padding: 6px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition);
+}
+
+.btn-publish {
+    color: var(--accent);
+    border-color: var(--accent-border);
+    background: var(--accent-bg-soft);
+}
+
+.btn-publish:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.btn-import {
+    color: var(--text-muted);
+}
+
+.btn-import:hover {
+    color: var(--blue);
+    border-color: var(--blue-border);
+    background: var(--blue-bg);
+}
+
 /* ===== 清单：一个角色 + 一把专武占一行 ===== */
 .roster-list {
     display: flex;
@@ -303,6 +353,11 @@
 .roster-row:hover {
     border-color: var(--border-hover);
     box-shadow: var(--shadow-hover);
+}
+
+/* 只读模式没有行内操作列，少一列避免留下一段空白 */
+.roster-row.is-readonly {
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
 }
 
 /* 已拥有角色：琥珀色描边；已拥有专武：紫色内描边 */
@@ -732,6 +787,33 @@
     border-radius: 20px;
 }
 
+/* ===== 只读提示 / 发布提示 ===== */
+.collection-notice,
+.collection-publish-hint {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.65;
+}
+
+.collection-notice {
+    border-color: var(--accent-border);
+    background: var(--accent-bg-soft);
+}
+
+.collection-publish-hint code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+}
+
 /* ===== 页面底部提示 ===== */
 .collection-hint {
     margin-top: 18px;
@@ -774,6 +856,11 @@
         grid-column: 2;
         grid-row: 1 / span 2;
         flex-direction: column;
+    }
+
+    /* 只读模式窄屏：角色与专武上下排列，不需要操作列 */
+    .roster-row.is-readonly {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .editor-char-grid {

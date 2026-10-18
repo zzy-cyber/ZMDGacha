@@ -98,9 +98,27 @@
                             未拥有角色 <span class="filter-count">0</span>
                         </button>
                     </div>
-                    <button class="btn btn-add" id="btnAddVersion" type="button" title="填写版本与角色信息">＋ 添加版本</button>
+                    <div class="collection-actions">
+                        <button class="btn btn-add" id="btnAddVersion" type="button"
+                            title="填写版本与角色信息">＋ 添加版本</button>
+                        <button class="btn-compact btn-publish" id="btnExportCollection" type="button"
+                            title="导出 JSON，交给 tools/publish-collection.mjs 生成发布内容" hidden>📤 导出发布包</button>
+                        <button class="btn-compact btn-import" id="btnImportCollection" type="button"
+                            title="从发布文档或之前的草稿恢复内容" hidden>📥 导入</button>
+                        <input type="file" id="collectionImportInput" class="visually-hidden"
+                            accept="application/json,.json" tabindex="-1" aria-hidden="true" />
+                    </div>
                 </div>
             </div>
+
+            <p class="collection-notice" id="collectionNotice" hidden>
+                🔒 清单内容由站长统一发布。你只需要勾选自己拥有的角色与专武，勾选结果只保存在本机浏览器，不会上传。
+            </p>
+
+            <p class="collection-publish-hint" id="collectionPublishHint" hidden>
+                🛠️ 编辑模式：改完内容后点「📤 导出发布包」，再在项目目录执行
+                <code>npm run publish</code> 生成静态文件并推送。
+            </p>
 
             <div class="version-collection" id="collectionList">
                 <!-- 版本分组与「一行一个角色」的清单由 js/ui/collection.js 动态渲染 -->
@@ -108,12 +126,12 @@
 
             <p class="collection-hint">
                 💡 图片建议：角色头像 <b>456×564</b>，武器图片 <b>256×256</b>（PNG / JPG / WebP 均可）。
-                在「添加 / 编辑版本」弹窗内上传，保存后自动裁切压缩并保存在本机浏览器缓存中，不会上传到服务器。
+                上传后会自动裁切压缩；发布时图片会拆成独立文件随站点分发，不塞进 JSON。
             </p>
         </section>
 
         <footer class="footer">
-            数据自动保存至本地缓存 · 明日方舟：终末地收集统计 · 仅供参考
+            清单内容由站长统一发布 · 拥有状态只保存在本机 · 明日方舟：终末地收集统计 · 仅供参考
         </footer>
     </div>
 
@@ -162,10 +180,12 @@
     <script src="js/core/storage.js"></script>
     <script src="js/core/collection-calc.js"></script>
     <script src="js/core/collection-store.js"></script>
+    <script src="js/core/collection-remote.js"></script>
     <script src="js/core/image-util.js"></script>
     <script src="js/ui/toast.js"></script>
     <script src="js/ui/theme.js"></script>
     <script src="js/ui/collection.js"></script>
+    <script src="js/ui/collection-publish.js"></script>
     <script src="js/collection-main.js"></script>
 </body>
 

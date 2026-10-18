@@ -25,6 +25,12 @@
     var draft = null;
     /** 待接收文件的图片槽位 { kind, char } */
     var pendingImage = null;
+    /**
+     * 是否允许编辑资料。
+     * 线上只读模式（访客）为 false：隐藏所有修改入口；
+     * 勾选拥有状态不受影响 —— 那属于访客自己的数据。
+     */
+    var canEdit = true;
 
     function cacheElements() {
         el.list = util.$('collectionList');
@@ -51,23 +57,32 @@
         el.editorClose = util.$('btnCloseEditor');
         el.editorCancel = util.$('btnCancelEditor');
         el.editorSave = util.$('btnSaveEditor');
+
+        el.notice = util.$('collectionNotice');
+    }
+
+    /** 按 canEdit 切换只读 / 编辑模式下的可见元素 */
+    function applyMode() {
+        if (el.addVersion) el.addVersion.hidden = !canEdit;
+        if (el.notice) el.notice.hidden = canEdit;
+        if (document.body) document.body.classList.toggle('collection-readonly', !canEdit);
     }
 
     // ======================== 弹窗草稿 ========================
 
+    /** 新建草稿角色：id 统一由 store 生成，避免两处实现漂移 */
     function blankCharacter() {
-        return {
-            name: '',
-            avatar: '',
-            weaponName: '',
-            weaponImage: '',
-            owned: false,
-            weaponOwned: false
-        };
+        return store.createCharacter();
     }
 
+    /**
+     * 复制角色进草稿。
+     * id 必须一起带过来：丢了 id，保存时会被当成新角色，
+     * 所有人的拥有状态就会跟着失效。
+     */
     function cloneCharacter(character) {
         return {
+            id: String(character.id || ''),
             name: String(character.name || ''),
             avatar: String(character.avatar || ''),
             weaponName: String(character.weaponName || ''),
@@ -162,6 +177,7 @@
     }
 
     function openEditor(options) {
+        if (!canEdit) return;
         var opts = options || {};
         var hasVersion = opts.versionIndex !== null && opts.versionIndex !== undefined;
         var version = hasVersion ? store.getVersion(opts.versionIndex) : null;
@@ -266,8 +282,21 @@
         var name = String(character.name || '').trim() || '未命名角色';
         var weaponName = String(character.weaponName || '').trim() || '未命名专武';
         var rowClass = 'roster-row' +
+            (canEdit ? '' : ' is-readonly') +
             (character.owned ? ' is-owned' : '') +
             (character.weaponOwned ? ' is-weapon-owned' : '');
+
+        // 只读模式不渲染行内编辑 / 删除按钮，访客只能勾选拥有状态
+        var actions = canEdit
+            ? '<div class="roster-row-actions">' +
+                '<button class="row-icon-btn" type="button" data-action="edit-version"' +
+                    ' data-version="' + versionIndex + '" data-char="' + characterIndex + '"' +
+                    ' title="编辑这个角色与专武" aria-label="编辑角色 ' + util.escapeHTML(name) + '">✎</button>' +
+                '<button class="row-icon-btn row-delete" type="button" data-action="delete-character"' +
+                    ' data-version="' + versionIndex + '" data-char="' + characterIndex + '"' +
+                    ' title="删除这个角色" aria-label="删除角色 ' + util.escapeHTML(name) + '">✕</button>' +
+              '</div>'
+            : '';
 
         return '' +
             '<div class="' + rowClass + '" data-version="' + versionIndex + '" data-char="' + characterIndex + '">' +
@@ -298,14 +327,7 @@
                         '<span>拥有专武</span>' +
                     '</label>' +
                 '</div>' +
-                '<div class="roster-row-actions">' +
-                    '<button class="row-icon-btn" type="button" data-action="edit-version"' +
-                        ' data-version="' + versionIndex + '" data-char="' + characterIndex + '"' +
-                        ' title="编辑这个角色与专武" aria-label="编辑角色 ' + util.escapeHTML(name) + '">✎</button>' +
-                    '<button class="row-icon-btn row-delete" type="button" data-action="delete-character"' +
-                        ' data-version="' + versionIndex + '" data-char="' + characterIndex + '"' +
-                        ' title="删除这个角色" aria-label="删除角色 ' + util.escapeHTML(name) + '">✕</button>' +
-                '</div>' +
+                actions +
             '</div>';
     }
 
@@ -332,14 +354,16 @@
                     '<span class="version-stat stat-weapon" title="已拥有角色的专武持有率">🗡️ <b>' +
                         stats.ownedWithWeapon + '/' + stats.owned + '</b> · ' +
                         calc.formatPercent(stats.weaponRate) + '</span>' +
-                    '<span class="version-actions">' +
-                        '<button class="btn-add-char" type="button" data-action="add-character"' +
-                            ' data-version="' + versionIndex + '">＋ 添加角色</button>' +
-                        '<button class="btn-edit-version" type="button" data-action="edit-version"' +
-                            ' data-version="' + versionIndex + '">✎ 编辑</button>' +
-                        '<button class="btn-delete" type="button" data-action="delete-version"' +
-                            ' data-version="' + versionIndex + '" title="删除此版本">🗑️ 删除</button>' +
-                    '</span>' +
+                    (canEdit
+                        ? '<span class="version-actions">' +
+                            '<button class="btn-add-char" type="button" data-action="add-character"' +
+                                ' data-version="' + versionIndex + '">＋ 添加角色</button>' +
+                            '<button class="btn-edit-version" type="button" data-action="edit-version"' +
+                                ' data-version="' + versionIndex + '">✎ 编辑</button>' +
+                            '<button class="btn-delete" type="button" data-action="delete-version"' +
+                                ' data-version="' + versionIndex + '" title="删除此版本">🗑️ 删除</button>' +
+                          '</span>'
+                        : '') +
                 '</header>' +
                 list +
             '</section>';
@@ -400,14 +424,20 @@
         var state = store.getState();
 
         if (state.versions.length === 0) {
-            el.list.innerHTML = '' +
-                '<div class="collection-empty">' +
+            el.list.innerHTML = canEdit
+                ? '<div class="collection-empty">' +
                     '<span class="empty-icon">📚</span>' +
                     '<p class="empty-title">还没有任何版本</p>' +
                     '<p class="empty-desc">先点击「＋ 添加版本」填写版本与角色信息；<br>' +
                         '保存后角色与专武会按「一行一个角色」显示在这里。</p>' +
                     '<button class="btn btn-add" type="button" data-action="add-version">＋ 添加版本</button>' +
-                '</div>';
+                  '</div>'
+                : '<div class="collection-empty">' +
+                    '<span class="empty-icon">📚</span>' +
+                    '<p class="empty-title">站长还没有发布收集清单</p>' +
+                    '<p class="empty-desc">清单由站长统一维护；发布后刷新本页即可看到。<br>' +
+                        '你的拥有状态会保存在本机，不会上传。</p>' +
+                  '</div>';
             return;
         }
 
@@ -495,6 +525,9 @@
         if (!target) return;
 
         var action = target.getAttribute('data-action');
+        // 只读模式下不该出现任何编辑按钮；这里再兜一层，防止手动改 DOM 后误操作
+        if (!canEdit) return;
+
         var versionIndex = util.toInt(target.getAttribute('data-version'));
         var characterIndex = util.toInt(target.getAttribute('data-char'));
 
@@ -684,8 +717,16 @@
         render();
     }
 
-    function init() {
+    /**
+     * @param {{canEdit?: boolean}} [options]
+     *        canEdit=false 时进入只读模式：内容由站长发布，访客只能勾选拥有状态。
+     */
+    function init(options) {
+        var opts = options || {};
+        canEdit = opts.canEdit !== false;
+
         cacheElements();
+        applyMode();
         bind();
         store.subscribe(handleStoreChange);
         render();
@@ -696,6 +737,7 @@
         init: init,
         render: render,
         openEditor: openEditor,
-        closeEditor: closeEditor
+        closeEditor: closeEditor,
+        canEdit: function () { return canEdit; }
     };
 })(window.ZMD);

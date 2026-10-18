@@ -1,0 +1,10 @@
+{
+  "name": "endfield-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "明日方舟：终末地 抽卡资源统计与角色/专武收集统计（纯静态，发布脚本零依赖）",
+  "scripts": {
+    "publish": "node tools/publish-collection.mjs --auto --prune --git",
+    "publish:dry": "node tools/publish-collection.mjs --auto --prune --dry-run"
+  }
+}
