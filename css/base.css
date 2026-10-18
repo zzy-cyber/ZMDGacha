@@ -191,6 +191,12 @@ body {
     background-attachment: fixed;
 }
 
+/* 主题偏好存放在 IndexedDB，异步读回期间先隐藏内容，避免深浅色闪屏。
+   页面内联脚本会加上这个类，js/ui/theme.js 应用主题后移除（400ms 兜底）。 */
+html.theme-pending body {
+    visibility: hidden;
+}
+
 /* 主题切换时的过渡：只作用于配色相关属性，避免影响布局与既有动效。
    切换瞬间 --theme-transition 被置 0，防止颜色变化产生残影。 */
 html.theme-animating,

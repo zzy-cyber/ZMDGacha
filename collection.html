@@ -8,21 +8,19 @@
     <title>角色 &amp; 武器收集统计 - 明日方舟：终末地</title>
 
     <!--
-      主题启动脚本：与 index.html 完全一致，在样式表之前决定 data-theme，
-      避免刷新时先闪一下深色再变成浅色。两个页面共享同一个主题缓存键。
+      主题启动脚本：与 index.html 完全一致，按系统偏好先上色并临时隐藏内容，
+      等 js/ui/theme.js 从 IndexedDB 读回真实主题后再显示。
+      两个页面共享同一个主题缓存键。
     -->
     <script>
         (function () {
-            var theme = 'dark';
-            try {
-                var saved = JSON.parse(localStorage.getItem('arknights_endfield_theme_v1') || 'null');
-                if (saved && (saved.theme === 'dark' || saved.theme === 'light')) {
-                    theme = saved.theme;
-                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-                    theme = 'light';
-                }
-            } catch (e) { /* localStorage 不可用时使用默认深色 */ }
-            document.documentElement.setAttribute('data-theme', theme);
+            var root = document.documentElement;
+            var light = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+            root.setAttribute('data-theme', light ? 'light' : 'dark');
+            root.classList.add('theme-pending');
+            setTimeout(function () {
+                root.classList.remove('theme-pending');
+            }, 400);
         })();
     </script>
 

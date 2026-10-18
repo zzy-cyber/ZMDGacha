@@ -1,7 +1,10 @@
 # 明日方舟：终末地 · 抽卡资源统计与规划
 
-纯静态网页工具，**双击 `index.html` 即可使用**（`file://` 直接打开也能正常运行），
-无需构建、无需安装依赖、无需本地服务器。
+纯静态网页工具，**双击 `index.html` 即可使用**，无需构建、无需安装依赖、无需本地服务器。
+
+> 数据缓存在 IndexedDB。Chrome / Edge 在 `file://` 下会禁用 IndexedDB，
+> 此时工具会自动退回内存缓存：功能正常，但刷新后数据会丢失。
+> 需要长期保存数据时，请用任意静态服务器打开（Firefox 直接双击打开也支持）。
 
 ---
 
@@ -22,7 +25,7 @@ js/
   core/
     namespace.js        全局命名空间 ZMD（必须最先加载）
     util.js             数值解析、DOM 查询、事件绑定
-    storage.js          localStorage 封装（不可用时自动降级到内存）
+    storage.js          IndexedDB 封装（Promise API，不可用时降级到内存，含旧数据迁移）
     store.js            抽卡规划状态中心：资源 / 版本列表 / 设置 + 变更标记（含字段名）+ 持久化
     calc.js             纯计算层：资源换算 + 抽卡推演 + 武库配额推演（不接触 DOM）
     collection-calc.js  收集统计纯计算层：角色拥有率 / 专武持有率 / 筛选
@@ -51,6 +54,9 @@ js/
 `file://` 协议下浏览器会以 CORS 规则拦截 `type="module"` 的加载，
 而本工具的使用方式就是双击打开。因此所有脚本都是经典脚本，按依赖顺序在
 `index.html` / `collection.html` 末尾引入；模块之间通过全局对象 `ZMD` 通信。
+
+同理，`file://` 下部分浏览器的 IndexedDB 不可用，缓存层会自动降级到内存，
+并在控制台给出提示，不会因此报错或白屏。
 
 ---
 
@@ -173,9 +179,14 @@ js/
   因此两处永远一致；开关关闭时 `run()` 完全不做武库配额加减。
 - **事件委托**：版本列表的编辑事件只绑定在容器上，重建卡片不会重复绑定，
   新增字段也无需新增绑定代码（结果表的勾选框同理）。
-- **数据兼容**：localStorage 键名沿用旧版本
+- **缓存层是异步的**：`ZMD.storage` 基于 IndexedDB，`readJSON / writeJSON / remove`
+  返回 Promise 且**永不 reject**（失败返回 `null` / `false`），调用方无需包 try/catch。
+  因此 `store.save/load`、`collectionStore.save/load` 也是异步的，
+  页面要等 `load()` 完成后再挂载界面模块（见 `main.js` / `collection-main.js`）。
+- **数据兼容**：缓存键名沿用旧版本
   （`arknights_endfield_planner_v2` / `arknights_endfield_settings_v1`），
-  旧数据可直接读取；旧数据缺失的字段会在载入时自动补齐
+  首次启动会把旧版 `localStorage` 里的 4 个键迁移进 IndexedDB，迁移成功后删除旧键；
+  旧数据缺失的字段会在载入时自动补齐
   （例如新增的 `versionName`，以及旧版本卡片里的
   `role1Pull / role1DayOne / skipHalf1` —— 它们会自动变成结果表里的勾选状态）。
 - **收集页的编辑与展示分离**：`collectionStore` 只服务 `collection.html`，
@@ -185,7 +196,7 @@ js/
 - **弹窗草稿只保存一次**：添加 / 编辑版本时，名称与图片先写入 UI 内部的 `draft`，
   取消直接丢弃；保存时才整体替换 `collectionStore` 里的版本并写入缓存。
   主页只负责展示清单与勾选，所以输入不会被重绘打断，也避免了空版本 / 半成品数据。
-  如果保存时 localStorage 写满，会回滚到保存前的版本列表，并保留弹窗方便重试。
+  如果保存时缓存写入失败（配额不足），会回滚到保存前的版本列表，并保留弹窗方便重试。
 
 ---
 
@@ -270,11 +281,13 @@ markChanged('versions');
 
 ## 五、主题（深色 / 浅色）
 
-- 右上角「🌙 主题」按钮切换，选择会记在 `localStorage`，下次打开保持。
+- 右上角「🌙 主题」按钮切换，选择会记在 IndexedDB（`arknights_endfield_theme_v1`），下次打开保持。
 - 从未选择过时，跟随系统 `prefers-color-scheme`；默认值为深色（与原版观感一致）。
-- `index.html` 与 `collection.html` 顶部各有一小段**唯一的行内脚本**，在样式表之前写好
-  `data-theme`，用于避免刷新时先闪一下深色再变浅色。这是有意保留的例外。
-  两个页面共用 `arknights_endfield_theme_v1`，在任何一页切换主题，另一页刷新后同样生效。
+- 主题读取现在是异步的，因此 `index.html` 与 `collection.html` 顶部各有一小段**唯一的行内脚本**：
+  先按系统偏好写好 `data-theme`，并给 `<html>` 加上 `theme-pending`（`visibility: hidden`），
+  等 `js/ui/theme.js` 从 IndexedDB 读回真实主题后再移除这个类，避免浅色用户刷新时看到深色闪屏。
+  内联脚本里还有 400ms 兜底，防止脚本异常导致内容一直不可见。
+  两个页面共用同一个主题键，在任何一页切换主题，另一页刷新后同样生效。
 
 ---
 
@@ -301,19 +314,22 @@ node .verify/make-preview.js  # 生成预览页（.verify/preview-*.html），�
 
 ## 七、数据说明
 
-- 所有数据只保存在浏览器本地（`localStorage`），不上传任何服务器。
+- 所有数据只保存在浏览器本地（IndexedDB 数据库 `arknights_endfield`，对象仓库 `cache`），
+  不上传任何服务器。
 - 缓存键：
   - `arknights_endfield_planner_v2`：资源 + 抽卡规划；
   - `arknights_endfield_settings_v1`：默认抽数与界面开关；
   - `arknights_endfield_theme_v1`：深色 / 浅色主题（两个页面共享）；
   - `arknights_endfield_collection_v1`：收集统计的版本 / 角色 / 图片 / 拥有状态 / 筛选。
+- 从旧版本升级时，上面 4 个键会从 `localStorage` 自动迁移进 IndexedDB，
+  迁移成功后旧键被删除；若新库里已有同名数据，则以新库为准。
 - 「🗑️ 清除本地缓存」会同时清空资源数据、版本规划、默认抽数、武库配额开关，
   以及收集统计里的版本、角色与图片。
 - 每 5 秒自动保存一次，切换标签页与关闭页面时也会保存（两个页面各自保存自己的数据）；
   资源区「收起 / 展开」的状态属于偏好设置，切换时会立即写入。
-- 收集统计页的图片在写入前会被压到固定尺寸并优先编码为 WebP，
-  但 localStorage 总容量通常只有约 5MB：角色很多时建议使用画质更低的图片，
-  或定期清理不需要的角色。写满时页面会提示并回滚当次图片修改。
+- 收集统计页的图片在写入前会被压到固定尺寸并优先编码为 WebP。
+  IndexedDB 的配额远大于 localStorage 的约 5MB，但并非无限：
+  写入失败时页面会提示并回滚当次修改。
 - 旧缓存可直接读取：缺失的新字段（`role1Weapon` / `role2Weapon`、`arsenalPlanEnabled`）
   会在载入时自动补默认值（`false`，即与开启新功能前完全一致）。
 - 早期版本用过「版本级」`pullWeapon`（整个版本只有一个武器开关，且只在第一条角色行显示）。

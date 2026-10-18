@@ -6,13 +6,15 @@
  *   2. 各界面模块挂载（只负责绑定事件，不主动重绘）；
  *   3. renderer 做首次渲染并开始订阅数据变化；
  *   4. 注册定时保存与页面关闭前保存。
+ *
+ * 缓存位于 IndexedDB，读取是异步的，因此界面在数据就绪后再挂载。
  */
 (function (ZMD) {
     'use strict';
 
     var store = ZMD.store;
 
-    /** 自动保存间隔，避免每次输入都写 localStorage。 */
+    /** 自动保存间隔，避免每次输入都写缓存。 */
     var AUTO_SAVE_INTERVAL = 5000;
 
     /** 首次访问时展示的示例规划。 */
@@ -46,15 +48,19 @@
         if (ZMD.theme && ZMD.theme.init) ZMD.theme.init();
     }
 
-    /** 恢复数据；首次访问时写入示例版本。 */
+    /**
+     * 恢复数据；首次访问时写入示例版本。
+     * 设置要先读（版本数据的字段补齐依赖其中的默认抽数）。
+     * @returns {Promise<void>}
+     */
     function initData() {
-        store.loadSettings();
-        var hasCache = store.load();
-
-        if (!hasCache) {
+        return store.loadSettings().then(function () {
+            return store.load();
+        }).then(function (hasCache) {
+            if (hasCache) return null;
             store.addVersion(EXAMPLE_VERSION);
-            store.save();
-        }
+            return store.save();
+        });
     }
 
     function initModules() {
@@ -77,6 +83,15 @@
         });
     }
 
+    /**
+     * 缓存不可用（常见于 Chrome / Edge 以 file:// 打开）时提示一次：
+     * 此时数据只在内存中，刷新后会丢失，不应该让用户误以为已经保存。
+     */
+    function warnIfNotPersistent() {
+        if (!ZMD.storage || ZMD.storage.available) return;
+        if (ZMD.toast) ZMD.toast.show('⚠️ 当前环境无法持久化，数据仅在本次会话有效');
+    }
+
     /** 在控制台输出当前规则，便于排查与二次开发。 */
     function logReady() {
         var settings = store.getState().settings;
@@ -89,7 +104,7 @@
             ') | 武库配额(÷' + rates.arsenalQuotaPerPull + '，不计入总抽) | 手动抽数(直接加减)');
         console.log('   - 双角色按 ' + Math.round(rates.firstHalfRatio * 100) + '%:' + (100 - Math.round(rates.firstHalfRatio * 100)) +
             '% 比例分配上下半，上半向下取整，小数点抽数归下半');
-        console.log('   - 每角色需' + rates.pullsPerRole + '抽 | 支持当日获取模式 | 数据自动缓存至 localStorage');
+        console.log('   - 每角色需' + rates.pullsPerRole + '抽 | 支持当日获取模式 | 数据自动缓存至 IndexedDB');
         console.log('   - 武库配额获取：' + (settings.arsenalPlanEnabled ? '已开启' : '已关闭') +
             '（每个被抽取的卡池 +' + rates.arsenalQuotaPerPoolPull + ' 配额，抽取武器 -' + rates.arsenalQuotaPerWeaponPull +
             ' 配额，' + rates.arsenalQuotaPerPull + ' 配额 = 1 抽，不计入总抽数；可在右上角设置中开关）');
@@ -98,11 +113,15 @@
 
     function start() {
         initTheme();
-        initData();
-        initModules();
-        ZMD.renderer.init();
-        initPersistence();
-        logReady();
+        initData().catch(function (error) {
+            console.error('[ZMD] 读取本地缓存失败，将以空数据启动:', error);
+        }).then(function () {
+            initModules();
+            ZMD.renderer.init();
+            initPersistence();
+            logReady();
+            warnIfNotPersistent();
+        });
     }
 
     if (document.readyState === 'loading') {

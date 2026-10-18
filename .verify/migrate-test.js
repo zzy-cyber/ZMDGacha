@@ -2,8 +2,8 @@
  * 旧缓存兼容自检：验证「改造前」的缓存数据能被正确读取与迁移
  * （版本级 pullWeapon → 每个角色的 role1Weapon / role2Weapon）。
  *
- * 为什么这样写：jsdom 下 file:// 属于不透明源，localStorage 直接不可用
- * （真实浏览器不受影响）。此时 js/core/storage.js 会自动降级到内存兜底，
+ * 为什么这样写：jsdom 没有 IndexedDB，js/core/storage.js 会自动降级到内存兜底
+ * （真实浏览器走 IndexedDB），读写接口完全一致，只是返回 Promise。
  * 所以这里用 ZMD.store.save() 把一份「旧结构」的数据写进缓存，
  * 再调用 ZMD.store.loadSettings() / load() —— 与页面启动完全同一条路径 ——
  * 检查迁移结果。
@@ -60,7 +60,7 @@ JSDOM.fromFile(INDEX, {
     return new Promise(function (resolve) {
         if (doc.readyState === 'complete') resolve();
         else win.addEventListener('load', resolve);
-    }).then(function () {
+    }).then(async function () {
         const ZMD = win.ZMD;
         const store = ZMD.store;
         const storage = ZMD.storage;
@@ -75,32 +75,32 @@ JSDOM.fromFile(INDEX, {
         store.getState().settings.defaultLargePulls = 120;
         store.getState().settings.defaultSmallPulls = 80;
         store.getState().settings.arsenalPlanEnabled = undefined;
-        store.save();
-        store.saveSettings();
+        await store.save();
+        await store.saveSettings();
 
-        // 取出缓存里的原始 JSON（与重新打开页面时读到的一模一样）
+        // 取出缓存里的原始数据（与重新打开页面时读到的一模一样）
         // 旧设置里没有 arsenalPlanEnabled 字段，收起状态为 true
-        const rawSettings = storage.readJSON(storage.KEYS.SETTINGS);
+        const rawSettings = await storage.readJSON(storage.KEYS.SETTINGS);
         rawSettings.resourcesCollapsed = true;
         delete rawSettings.arsenalPlanEnabled;
-        const rawPlanner = JSON.parse(JSON.stringify(storage.readJSON(storage.KEYS.PLANNER) || null));
+        const rawPlanner = JSON.parse(JSON.stringify((await storage.readJSON(storage.KEYS.PLANNER)) || null));
         ok(rawPlanner && rawPlanner.versionDataList.length === 4, '测试数据已写入缓存（4 个版本）');
         ok(rawPlanner.versionDataList[0].role1Weapon === undefined,
             '缓存里的旧数据确实没有 role1Weapon 字段');
 
         // 2) 清空内存状态，模拟「重新打开页面」
-        store.resetAll();
+        await store.resetAll();
         ok(store.getState().versionDataList.length === 0, 'resetAll 后状态已清空');
 
         // 3) 重新写入刚才的旧缓存，再走启动时的载入路径
-        storage.writeJSON(storage.KEYS.PLANNER, rawPlanner);
-        storage.writeJSON(storage.KEYS.SETTINGS, rawSettings);
-        ok(storage.readJSON(storage.KEYS.PLANNER).versionDataList.length === 4, '旧缓存已重新写入');
-        ok(storage.readJSON(storage.KEYS.SETTINGS).arsenalPlanEnabled === undefined,
+        await storage.writeJSON(storage.KEYS.PLANNER, rawPlanner);
+        await storage.writeJSON(storage.KEYS.SETTINGS, rawSettings);
+        ok((await storage.readJSON(storage.KEYS.PLANNER)).versionDataList.length === 4, '旧缓存已重新写入');
+        ok((await storage.readJSON(storage.KEYS.SETTINGS)).arsenalPlanEnabled === undefined,
             '旧设置里确实没有 arsenalPlanEnabled 字段');
 
-        store.loadSettings();
-        const loaded = store.load();
+        await store.loadSettings();
+        const loaded = await store.load();
         ZMD.renderer.renderAll(true);
 
         const list = store.getState().versionDataList;

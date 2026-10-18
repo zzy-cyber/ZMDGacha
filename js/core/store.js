@@ -4,7 +4,8 @@
  * 设计要点：
  *  - 所有界面模块只读写这里的状态，不各自持有副本；
  *  - 任何修改都经过 set / 具体方法，修改后统一触发订阅者回调；
- *  - 数据结构与旧版 localStorage 完全兼容，老数据可直接读取。
+ *  - 数据结构与旧版完全兼容，老数据可直接读取；
+ *  - 持久化走 IndexedDB（异步），save / load / loadSettings 均返回 Promise。
  *
  * 扩展方式：新增一组状态时，在 state 中加字段，并补充对应的读写方法即可；
  * 界面模块通过 ZMD.store.subscribe() 订阅变化，无需彼此感知。
@@ -279,26 +280,32 @@
         notify('settings');
     }
 
+    /** @returns {Promise<boolean>} 是否写入成功 */
     function saveSettings() {
-        storage.writeJSON(KEYS.SETTINGS, state.settings);
+        return storage.writeJSON(KEYS.SETTINGS, state.settings);
     }
 
+    /** @returns {Promise<void>} */
     function loadSettings() {
-        var saved = storage.readJSON(KEYS.SETTINGS);
-        if (!saved) return;
-        var defaults = defaultSettings();
-        state.settings.defaultLargePulls = saved.defaultLargePulls == null ? defaults.defaultLargePulls : saved.defaultLargePulls;
-        state.settings.defaultSmallPulls = saved.defaultSmallPulls == null ? defaults.defaultSmallPulls : saved.defaultSmallPulls;
-        state.settings.resourcesCollapsed = saved.resourcesCollapsed == null ? defaults.resourcesCollapsed : !!saved.resourcesCollapsed;
-        state.settings.arsenalPlanEnabled = saved.arsenalPlanEnabled == null ? defaults.arsenalPlanEnabled : !!saved.arsenalPlanEnabled;
+        return storage.readJSON(KEYS.SETTINGS).then(function (saved) {
+            if (!saved || typeof saved !== 'object') return;
+            var defaults = defaultSettings();
+            state.settings.defaultLargePulls = saved.defaultLargePulls == null ? defaults.defaultLargePulls : saved.defaultLargePulls;
+            state.settings.defaultSmallPulls = saved.defaultSmallPulls == null ? defaults.defaultSmallPulls : saved.defaultSmallPulls;
+            state.settings.resourcesCollapsed = saved.resourcesCollapsed == null ? defaults.resourcesCollapsed : !!saved.resourcesCollapsed;
+            state.settings.arsenalPlanEnabled = saved.arsenalPlanEnabled == null ? defaults.arsenalPlanEnabled : !!saved.arsenalPlanEnabled;
+        });
     }
 
     // ======================== 持久化 ========================
 
-    /** 把当前状态写入 localStorage。 */
+    /**
+     * 把当前状态写入 IndexedDB。
+     * @returns {Promise<boolean>} 是否写入成功
+     */
     function save() {
         var resources = state.resources;
-        storage.writeJSON(KEYS.PLANNER, {
+        return storage.writeJSON(KEYS.PLANNER, {
             crystalJade: resources.crystalJade,
             guaranteeQuota: resources.guaranteeQuota,
             sourceStone: resources.sourceStone,
@@ -310,31 +317,38 @@
     }
 
     /**
-     * 从 localStorage 恢复状态。
-     * @returns {boolean} 是否读到了有效缓存
+     * 从 IndexedDB 恢复状态。
+     * @returns {Promise<boolean>} 是否读到了有效缓存
      */
     function load() {
-        var data = storage.readJSON(KEYS.PLANNER);
-        if (!data || typeof data !== 'object') return false;
+        return storage.readJSON(KEYS.PLANNER).then(function (data) {
+            if (!data || typeof data !== 'object') return false;
 
-        var r = state.resources;
-        r.crystalJade = data.crystalJade == null ? 0 : data.crystalJade;
-        r.guaranteeQuota = data.guaranteeQuota == null ? 0 : data.guaranteeQuota;
-        r.sourceStone = data.sourceStone == null ? 0 : data.sourceStone;
-        r.arsenalQuota = data.arsenalQuota == null ? 0 : data.arsenalQuota;
-        r.manualPulls = data.manualPulls == null ? 0 : data.manualPulls;
-        r.includeSourceStone = data.includeSourceStone == null ? true : data.includeSourceStone;
+            var r = state.resources;
+            r.crystalJade = data.crystalJade == null ? 0 : data.crystalJade;
+            r.guaranteeQuota = data.guaranteeQuota == null ? 0 : data.guaranteeQuota;
+            r.sourceStone = data.sourceStone == null ? 0 : data.sourceStone;
+            r.arsenalQuota = data.arsenalQuota == null ? 0 : data.arsenalQuota;
+            r.manualPulls = data.manualPulls == null ? 0 : data.manualPulls;
+            r.includeSourceStone = data.includeSourceStone == null ? true : data.includeSourceStone;
 
-        state.versionDataList = (data.versionDataList || []).map(migrateVersion);
-        return true;
+            state.versionDataList = (data.versionDataList || []).map(migrateVersion);
+            return true;
+        });
     }
 
-    /** 清空全部数据并恢复出厂状态。 */
+    /**
+     * 清空全部数据并恢复出厂状态。
+     * 状态同步重置、界面立即刷新，缓存删除在后台完成。
+     * @returns {Promise<*>}
+     */
     function resetAll() {
-        storage.remove(KEYS.PLANNER);
-        storage.remove(KEYS.SETTINGS);
-        // 收集统计页的数据也属于「本地缓存」，一并清空
-        storage.remove(KEYS.COLLECTION);
+        var pending = [
+            storage.remove(KEYS.PLANNER),
+            storage.remove(KEYS.SETTINGS),
+            // 收集统计页的数据也属于「本地缓存」，一并清空
+            storage.remove(KEYS.COLLECTION)
+        ];
         state.resources = {
             crystalJade: 0,
             guaranteeQuota: 0,
@@ -350,6 +364,7 @@
         markChanged('versions');
         markChanged('settings');
         notify('reset');
+        return Promise.all(pending);
     }
 
     ZMD.store = {

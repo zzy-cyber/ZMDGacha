@@ -77,6 +77,27 @@ function isShown(element) {
     return !!element && element.classList.contains('show');
 }
 
+/**
+ * 等待应用完成异步缓存加载与首次渲染。
+ * IndexedDB 版本的启动是异步的（数据就绪后才挂载界面），
+ * 所以自检不能一收到 load 事件就操作 DOM。
+ */
+function waitForApp(win, predicate) {
+    return new Promise(function (resolve) {
+        const deadline = Date.now() + 3000;
+        const tick = function () {
+            let ready = false;
+            try { ready = predicate(win); } catch (e) { ready = false; }
+            if (ready || Date.now() > deadline) {
+                resolve();
+                return;
+            }
+            setTimeout(tick, 10);
+        };
+        tick();
+    });
+}
+
 const virtualConsole = new VirtualConsole();
 const consoleErrors = [];
 virtualConsole.on('jsdomError', function (error) {
@@ -100,6 +121,11 @@ JSDOM.fromFile(PAGE, {
     return new Promise(function (resolve) {
         if (doc.readyState === 'complete') resolve();
         else win.addEventListener('load', resolve);
+    }).then(function () {
+        return waitForApp(win, function (w) {
+            return !!(w.ZMD && w.ZMD.collectionStore &&
+                w.document.querySelector('#collectionList .collection-empty'));
+        });
     }).then(function () {
         return run(win, doc);
     }).then(function () {
@@ -356,8 +382,8 @@ async function run(win, doc) {
     ok(!!rows()[0].querySelector('.roster-thumb-weapon img'), '保存后主页第一行显示武器图');
 
     section('【8】数据序列化 / 删除');
-    store.save();
-    const raw = ZMD.storage.readJSON('arknights_endfield_collection_v1');
+    await store.save();
+    const raw = await ZMD.storage.readJSON('arknights_endfield_collection_v1');
     ok(!!raw && raw.versions.length === 1, '数据写入收集统计专用缓存键');
     ok(!!raw && raw.versions[0].characters.length === 3, '三个角色被完整序列化');
     ok(!!raw && raw.versions[0].characters[0].avatar === uploadedAvatar, '头像 data URL 被保存');

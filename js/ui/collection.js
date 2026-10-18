@@ -234,17 +234,19 @@
             store.updateVersion(draft.versionIndex, data);
         }
 
-        // 写入缓存失败（通常是图片太多、localStorage 空间不足）时整体回滚，
-        // 保持「界面 = 缓存」；弹窗不关闭，用户减少图片后可以直接重试。
-        if (!store.save() && canPersist()) {
-            store.restoreVersions(previousVersions);
-            store.save();
-            ZMD.toast.show('❌ 本地缓存空间不足，本次修改已撤销；请减少图片后重试');
-            return;
-        }
+        // 写入缓存失败（通常是配额不足）时整体回滚，保持「界面 = 缓存」；
+        // 弹窗不关闭，用户减少图片后可以直接重试。
+        store.save().then(function (ok) {
+            if (!ok && canPersist()) {
+                store.restoreVersions(previousVersions);
+                store.save();
+                ZMD.toast.show('❌ 本地缓存写入失败，本次修改已撤销；请减少图片后重试');
+                return;
+            }
 
-        closeEditor();
-        ZMD.toast.show(isCreate ? '✅ 已添加版本 ' + (createdIndex + 1) : '✅ 版本信息已更新');
+            closeEditor();
+            ZMD.toast.show(isCreate ? '✅ 已添加版本 ' + (createdIndex + 1) : '✅ 版本信息已更新');
+        });
     }
 
     // ======================== 主页清单 ========================
@@ -422,7 +424,7 @@
     // ======================== 持久化 ========================
 
     /**
-     * 浏览器是否真的能写入 localStorage。
+     * 浏览器是否真的能写入本地缓存（IndexedDB）。
      * 不可用时 store 会退回内存保存：数据在本次会话有效，刷新后丢失，
      * 此时不应该报「空间不足」，否则会误导用户。
      */
@@ -430,11 +432,12 @@
         return !!(ZMD.storage && ZMD.storage.available);
     }
 
-    /** 立即保存，并在失败时给出提示。 */
+    /** 立即保存，并在失败时给出提示；返回 Promise（多数调用方不关心结果）。 */
     function persist() {
-        var ok = store.save();
-        if (!ok && canPersist()) ZMD.toast.show('❌ 本地缓存写入失败，可能空间不足');
-        return ok || !canPersist();
+        return store.save().then(function (ok) {
+            if (!ok && canPersist()) ZMD.toast.show('❌ 本地缓存写入失败，可能空间不足');
+            return ok || !canPersist();
+        });
     }
 
     // ======================== 弹窗图片 ========================

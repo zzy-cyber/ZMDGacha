@@ -5,6 +5,10 @@
  * 颜色全部来自 css/base.css 中的令牌，因此新增主题只需追加一组变量，无需改动 JS。
  *
  * 优先级：用户手动选择 > 系统偏好 > 默认深色（保持原有观感）。
+ *
+ * 主题偏好存放在 IndexedDB（异步），因此 init 返回 Promise：
+ * 页面会在 <html class="theme-pending"> 状态下先隐藏内容，
+ * 等这里读回真实主题后应用并解除隐藏，避免浅色用户看到深色闪屏。
  */
 (function (ZMD) {
     'use strict';
@@ -41,18 +45,28 @@
         return 'dark';
     }
 
-    /** 决定初始主题。 */
+    /**
+     * 决定初始主题。
+     * @returns {Promise<string>}
+     */
     function resolveInitialTheme() {
-        var saved = storage.readJSON(storage.KEYS.THEME);
-        if (saved && isValidTheme(saved.theme)) {
-            userChosen = true;
-            return saved.theme;
-        }
-        // 兼容内联启动脚本已经写好的 data-theme
-        var preset = document.documentElement.getAttribute('data-theme');
-        if (isValidTheme(preset)) return preset;
+        return storage.readJSON(storage.KEYS.THEME).then(function (saved) {
+            if (saved && isValidTheme(saved.theme)) {
+                userChosen = true;
+                return saved.theme;
+            }
+            // 兼容内联启动脚本已经写好的 data-theme
+            var preset = document.documentElement.getAttribute('data-theme');
+            if (isValidTheme(preset)) return preset;
 
-        return systemTheme();
+            return systemTheme();
+        });
+    }
+
+    /** 主题确定后解除「先隐藏内容」的保护（见页面内联脚本）。 */
+    function reveal() {
+        var root = document.documentElement;
+        if (root && root.classList) root.classList.remove('theme-pending');
     }
 
     /**
@@ -134,11 +148,15 @@
 
     /** 初始化：应用主题并绑定按钮。 */
     function init() {
-        current = resolveInitialTheme();
-        apply(current, false);
-        bindSystemPreference();
-
-        util.on(util.$('btnThemeToggle'), 'click', toggle);
+        return resolveInitialTheme().then(function (theme) {
+            current = theme;
+            apply(current, false);
+            bindSystemPreference();
+            util.on(util.$('btnThemeToggle'), 'click', toggle);
+        }).catch(function (error) {
+            console.warn('[ZMD.theme] 读取主题偏好失败，使用默认主题:', error);
+            apply(current, false);
+        }).then(reveal);
     }
 
     ZMD.theme = {

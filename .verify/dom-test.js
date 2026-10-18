@@ -67,6 +67,27 @@ function typeText(win, element, value) {
     element.dispatchEvent(new win.Event('input', { bubbles: true }));
 }
 
+/**
+ * 等待应用完成异步缓存加载与首次渲染。
+ * IndexedDB 版本的启动是异步的（数据就绪后才挂载界面），
+ * 所以自检不能一收到 load 事件就操作 DOM。
+ */
+function waitForApp(win, predicate) {
+    return new Promise(function (resolve) {
+        const deadline = Date.now() + 3000;
+        const tick = function () {
+            let ready = false;
+            try { ready = predicate(win); } catch (e) { ready = false; }
+            if (ready || Date.now() > deadline) {
+                resolve();
+                return;
+            }
+            setTimeout(tick, 10);
+        };
+        tick();
+    });
+}
+
 const virtualConsole = new VirtualConsole();
 const consoleErrors = [];
 virtualConsole.on('jsdomError', function (error) {
@@ -90,6 +111,10 @@ JSDOM.fromFile(INDEX, {
     return new Promise(function (resolve) {
         if (doc.readyState === 'complete') resolve();
         else win.addEventListener('load', resolve);
+    }).then(function () {
+        return waitForApp(win, function (w) {
+            return !!(w.ZMD && w.ZMD.store && w.ZMD.store.getState().versionDataList.length > 0);
+        });
     }).then(function () {
         return run(win, doc);
     }).then(function () {

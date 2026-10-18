@@ -5,8 +5,9 @@
  * 界面订阅后决定是否重绘。名称输入这种「不改变结构」的修改只标记为 field，
  * 界面不会重建 DOM，因此不会打断输入光标。
  *
- * 存储：localStorage（键 arknights_endfield_collection_v1），
+ * 存储：IndexedDB（键 arknights_endfield_collection_v1），
  * 图片以压缩后的 data URL 形式随角色对象一起保存。
+ * 读写均为异步，save / load / reset 返回 Promise。
  */
 (function (ZMD) {
     'use strict';
@@ -222,8 +223,8 @@
     // ======================== 持久化 ========================
 
     /**
-     * 写入 localStorage。
-     * @returns {boolean} 是否成功（图片过多导致配额不足时会返回 false）
+     * 写入 IndexedDB。
+     * @returns {Promise<boolean>} 是否成功（配额不足时会返回 false）
      */
     function save() {
         return storage.writeJSON(KEY, {
@@ -234,15 +235,16 @@
 
     /**
      * 读取缓存，并对旧数据做字段补齐。
-     * @returns {boolean} 是否读到有效数据
+     * @returns {Promise<boolean>} 是否读到有效数据
      */
     function load() {
-        var data = storage.readJSON(KEY);
-        if (!data || typeof data !== 'object') return false;
+        return storage.readJSON(KEY).then(function (data) {
+            if (!data || typeof data !== 'object') return false;
 
-        state.versions = (Array.isArray(data.versions) ? data.versions : []).map(normalizeVersion);
-        state.filter = FILTERS.indexOf(data.filter) >= 0 ? data.filter : 'all';
-        return true;
+            state.versions = (Array.isArray(data.versions) ? data.versions : []).map(normalizeVersion);
+            state.filter = FILTERS.indexOf(data.filter) >= 0 ? data.filter : 'all';
+            return true;
+        });
     }
 
     /** 整体替换版本列表（保存失败时回滚草稿修改使用）。 */
@@ -253,10 +255,11 @@
 
     /** 清空收集数据（清空缓存时使用）。 */
     function reset() {
-        storage.remove(KEY);
+        var pending = storage.remove(KEY);
         state.versions = [];
         state.filter = 'all';
         notify('reset');
+        return pending;
     }
 
     ZMD.collectionStore = {
